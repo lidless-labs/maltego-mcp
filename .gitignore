@@ -6,3 +6,11 @@ dist/
 coverage/
 .vitest-cache/
 docs/superpowers/
+
+# Phase B (transforms)
+transforms/.venv/
+transforms/.pytest_cache/
+transforms/.mypy_cache/
+transforms/.ruff_cache/
+__pycache__/
+*.pyc

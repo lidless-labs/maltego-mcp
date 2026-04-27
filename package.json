@@ -13,7 +13,10 @@
     "test": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:all": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "setup:transforms": "py -3 scripts/setup_venv.py",
+    "test:transforms": "transforms/.venv/Scripts/python.exe -m pytest tests/transforms",
+    "build:mtz": "py -3 scripts/build_mtz.py"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

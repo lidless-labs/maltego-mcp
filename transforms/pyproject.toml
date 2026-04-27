@@ -1,0 +1,35 @@
+[project]
+name = "maltego-mcp-transforms"
+version = "0.1.0"
+description = "Phase B Python TRX transforms for maltego-mcp."
+requires-python = ">=3.11"
+dependencies = [
+  "maltego-trx~=1.7",
+  "requests>=2.32.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=4.1",
+  "responses>=0.25",
+  "ruff>=0.5",
+  "mypy>=1.10",
+  "types-requests",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["../tests/transforms"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "PL"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

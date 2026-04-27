@@ -1,0 +1,47 @@
+"""Shared pytest fixtures for transforms/."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+import responses
+
+
+@pytest.fixture
+def fake_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """Write a config.toml under tmp_path and point MALTEGO_MCP_CONFIG_DIR at it."""
+    cfg_dir = tmp_path / "maltego-mcp"
+    cfg_dir.mkdir()
+    cfg_path = cfg_dir / "config.toml"
+    cfg_path.write_text(
+        """
+[misp]
+url = "https://misp.test"
+api_key_env = "MISP_API_KEY"
+verify_ssl = false
+
+[thehive]
+url = "https://thehive.test"
+api_key_env = "THEHIVE_API_KEY"
+
+[cortex]
+url = "https://cortex.test"
+api_key_env = "CORTEX_API_KEY"
+
+[network]
+timeout_s = 5
+""".strip()
+    )
+    monkeypatch.setenv("MALTEGO_MCP_CONFIG_DIR", str(cfg_dir))
+    monkeypatch.setenv("MISP_API_KEY", "test-misp-key")
+    monkeypatch.setenv("THEHIVE_API_KEY", "test-thehive-key")
+    monkeypatch.setenv("CORTEX_API_KEY", "test-cortex-key")
+    yield cfg_path
+
+
+@pytest.fixture
+def mocked_responses() -> Iterator[responses.RequestsMock]:
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        yield rsps
