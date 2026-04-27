@@ -1,6 +1,6 @@
 [project]
 name = "maltego-mcp-transforms"
-version = "0.1.0"
+version = "0.2.0"
 description = "Phase B Python TRX transforms for maltego-mcp."
 requires-python = ">=3.11"
 dependencies = [

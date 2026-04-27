@@ -9,7 +9,7 @@ registry = TransformRegistry(
     seed_ids=[],
 )
 
-registry.version = "0.1.0"
+registry.version = "0.2.0"
 registry.display_name_suffix = " [MCP]"
 
 MCP_TRANSFORM_SET = TransformSet(
