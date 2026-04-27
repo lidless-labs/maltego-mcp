@@ -1,6 +1,11 @@
 # maltego-mcp
 
-MCP server that lets Claude author Maltego `.mtgx` graph files and run primitive OSINT lookups (whois / DNS / ASN / crt.sh). Graphs land on disk and you open them in Maltego Desktop.
+Two cooperating layers for Maltego Desktop:
+
+- **Phase A (TypeScript MCP server):** lets Claude author Maltego `.mtgx` graph files and run primitive OSINT lookups (whois / DNS / ASN / crt.sh). Graphs land on disk and you open them in Maltego Desktop.
+- **Phase B (Python TRX transforms in a `.mtz`):** adds right-click pivots into MISP, TheHive, Cortex, and the bundled MITRE ATT&CK dataset directly inside Maltego Desktop. See `transforms/README.md` for setup.
+
+The two phases share the repo, nothing else. Either layer can be uninstalled without breaking the other.
 
 ## Requirements
 
@@ -72,11 +77,26 @@ Standard Maltego ontology: `IPv4Address`, `IPv6Address`, `Domain`, `URL`, `Hash`
 
 maltego-mcp does not embed third-party threat-intel clients. For MISP events, ATT&CK techniques, Cortex reports, etc., call the dedicated MCPs (`misp-mcp`, `mitre-mcp`, `cortex-mcp`, etc.) and pipe the results into `maltego_add_entity` / `maltego_add_link`.
 
+## Phase B: in-Maltego transforms (.mtz)
+
+A separate Python transform layer ships right-click pivots into MISP,
+TheHive, Cortex, and ATT&CK directly inside Maltego Desktop. See
+`transforms/README.md` for full setup.
+
+Quick start:
+
+```bash
+npm run setup:transforms
+npm run build:mtz
+# Then in Maltego: Import -> Configuration -> dist/maltego-mcp-transforms.mtz
+```
+
 ## Development
 
 ```bash
-npm test              # unit tests
+npm test                # Phase A unit tests (vitest)
 npm run test:integration
 npm run test:all
 npm run typecheck
+npm run test:transforms # Phase B pytest suite
 ```
