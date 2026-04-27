@@ -20,10 +20,10 @@ if str(REPO_ROOT) not in sys.path:
 from maltego_trx.handler import handle_run  # noqa: E402
 from maltego_trx.registry import register_transform_classes  # noqa: E402
 
-from transforms import transforms as transform_pkg  # noqa: E402
+from transforms import discoverable as transform_pkg  # noqa: E402
 from transforms.extensions import registry  # noqa: F401, E402  -- side-effect: registry config
 
 register_transform_classes(transform_pkg)
 
 if __name__ == "__main__":
-    handle_run(__name__, sys.argv, application=None)
+    handle_run(__name__, sys.argv, None)

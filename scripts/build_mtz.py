@@ -28,7 +28,7 @@ sys.path.insert(0, str(SITE))
 from maltego_trx.registry import register_transform_classes  # noqa: E402
 
 from scripts.check_entropy import scan_zip  # noqa: E402
-from transforms import transforms as transform_pkg  # noqa: E402
+from transforms import discoverable as transform_pkg  # noqa: E402
 from transforms.extensions import registry  # noqa: E402
 
 

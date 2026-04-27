@@ -3,4 +3,4 @@
 New transforms must be imported here so register_transform_classes can find them.
 """
 
-from .misp_event_pivot import MispEventPivot  # noqa: F401
+from .MispEventPivot import MispEventPivot  # noqa: F401

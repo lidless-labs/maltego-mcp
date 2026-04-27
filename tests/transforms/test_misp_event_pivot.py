@@ -10,7 +10,7 @@ import pytest
 import responses
 from maltego_trx.maltego import MaltegoTransform
 
-from transforms.transforms.misp_event_pivot import MispEventPivot
+from transforms.discoverable.MispEventPivot import MispEventPivot
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
