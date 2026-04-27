@@ -1,0 +1,1 @@
+<MaltegoServer name="Local" enabled="true" description="Local transforms hosted on this machine" url="http://localhost"><LastSync>__IGNORE__</LastSync><Protocol version="0.0" /><Authentication type="none" /><Transforms><Transform name="misp_event_pivot" /></Transforms><Seeds /></MaltegoServer>
