@@ -1,0 +1,28 @@
+{
+  "response": {
+    "Attribute": [
+      {
+        "id": "1001",
+        "type": "ip-dst",
+        "value": "1.2.3.4",
+        "event_id": "1337",
+        "Event": {
+          "id": "1337",
+          "info": "Cobalt Strike infrastructure",
+          "date": "2026-04-20"
+        }
+      },
+      {
+        "id": "1002",
+        "type": "ip-dst",
+        "value": "1.2.3.4",
+        "event_id": "1338",
+        "Event": {
+          "id": "1338",
+          "info": "Phishing campaign April",
+          "date": "2026-04-22"
+        }
+      }
+    ]
+  }
+}
