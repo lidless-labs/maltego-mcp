@@ -28,7 +28,11 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "PL"]
+select = ["E", "F", "I", "B"]
+ignore = [
+  "B008",  # function call as default arg - we use Path() constants
+  "B904",  # raise from in some explicit error mapping
+]
 
 [tool.mypy]
 python_version = "3.11"

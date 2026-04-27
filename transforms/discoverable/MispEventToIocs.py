@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 
-from maltego_trx.entities import Domain, Email, Hash, IPAddress, Phrase, URL
+from maltego_trx.entities import URL, Domain, Email, Hash, IPAddress, Phrase
 from maltego_trx.transform import DiscoverableTransform
 
 from transforms.extensions import MCP_TRANSFORM_SET, registry
