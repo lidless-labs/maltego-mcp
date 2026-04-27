@@ -1,0 +1,18 @@
+{
+  "techniques": {
+    "T1566": {
+      "name": "Phishing",
+      "tactics": ["Initial Access"],
+      "subtechniques": ["T1566.001", "T1566.002", "T1566.003"]
+    },
+    "T1566.001": {
+      "name": "Spearphishing Attachment",
+      "tactics": ["Initial Access"],
+      "parent": "T1566"
+    },
+    "T1059": {
+      "name": "Command and Scripting Interpreter",
+      "tactics": ["Execution"]
+    }
+  }
+}

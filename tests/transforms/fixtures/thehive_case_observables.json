@@ -1,0 +1,8 @@
+[
+  {"_id": "OBS-A", "data": "1.2.3.4", "dataType": "ip"},
+  {"_id": "OBS-B", "data": "evil.example", "dataType": "domain"},
+  {"_id": "OBS-C", "data": "http://evil.example/c2", "dataType": "url"},
+  {"_id": "OBS-D", "data": "d41d8cd98f00b204e9800998ecf8427e", "dataType": "hash"},
+  {"_id": "OBS-E", "data": "ops@evil.example", "dataType": "mail"},
+  {"_id": "OBS-F", "data": "btc-wallet-xyz", "dataType": "other"}
+]

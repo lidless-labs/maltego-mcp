@@ -1,0 +1,11 @@
+{
+  "id": "JOB-123",
+  "status": "Success",
+  "report": {
+    "summary": {
+      "taxonomies": [
+        {"level": "malicious", "namespace": "VT", "predicate": "GetReport", "value": "12/87"}
+      ]
+    }
+  }
+}

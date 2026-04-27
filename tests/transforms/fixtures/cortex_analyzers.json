@@ -1,0 +1,4 @@
+[
+  {"id": "VirusTotal_GetReport_3_1", "name": "VirusTotal_GetReport", "version": "3.1", "dataTypeList": ["ip", "domain", "hash", "url"]},
+  {"id": "AbuseIPDB_1_0", "name": "AbuseIPDB", "version": "1.0", "dataTypeList": ["ip"]}
+]

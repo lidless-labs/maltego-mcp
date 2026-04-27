@@ -1,0 +1,14 @@
+{
+  "Event": {
+    "id": "1337",
+    "info": "Cobalt Strike infrastructure",
+    "Attribute": [
+      {"type": "ip-dst", "value": "1.2.3.4"},
+      {"type": "domain", "value": "evil.example"},
+      {"type": "url", "value": "http://evil.example/c2"},
+      {"type": "md5", "value": "d41d8cd98f00b204e9800998ecf8427e"},
+      {"type": "email-src", "value": "ops@evil.example"},
+      {"type": "btc", "value": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"}
+    ]
+  }
+}
