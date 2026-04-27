@@ -80,5 +80,3 @@ npm run test:integration
 npm run test:all
 npm run typecheck
 ```
-
-See `docs/superpowers/specs/` for design notes and `docs/superpowers/plans/` for implementation history.
