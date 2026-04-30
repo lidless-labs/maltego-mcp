@@ -7,6 +7,11 @@
   "bin": {
     "maltego-mcp": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -14,10 +19,28 @@
     "test:integration": "vitest run tests/integration",
     "test:all": "vitest run",
     "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build",
     "setup:transforms": "py -3 scripts/setup_venv.py",
     "test:transforms": "transforms/.venv/Scripts/python.exe -m pytest tests/transforms",
     "build:mtz": "py -3 scripts/build_mtz.py"
   },
+  "license": "MIT",
+  "author": "Solomon Neas <srneas@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solomonneas/maltego-mcp.git"
+  },
+  "homepage": "https://github.com/solomonneas/maltego-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/solomonneas/maltego-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "maltego",
+    "osint",
+    "graph",
+    "model-context-protocol"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "jszip": "^3.10.1",
