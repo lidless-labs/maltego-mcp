@@ -15,7 +15,7 @@ The two phases share the repo, nothing else. Either layer can be uninstalled wit
 ## Install
 
 ```bash
-git clone git@github.com:solomonneas/maltego-mcp.git
+git clone https://github.com/solomonneas/maltego-mcp.git
 cd maltego-mcp
 npm install
 npm run build
