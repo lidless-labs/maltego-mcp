@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: { "mcp-server": "mcp-server.ts" },
+  entry: { "index": "index.ts", "mcp-server": "mcp-server.ts" },
   format: ["esm"],
   target: "node20",
   platform: "node",
@@ -10,4 +10,5 @@ export default defineConfig({
   shims: true,
   sourcemap: false,
   dts: false,
+  external: ["openclaw"],
 });
