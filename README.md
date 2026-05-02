@@ -1,8 +1,18 @@
-# maltego-mcp
+<p align="center">
+  <img src="docs/assets/maltego-mcp-banner.jpg" alt="Watercolor transform pivot map for maltego-mcp" width="100%" />
+</p>
 
-[![GitHub release](https://img.shields.io/github/v/release/solomonneas/maltego-mcp?label=release&color=blue)](https://github.com/solomonneas/maltego-mcp/releases/latest)
-[![npm](https://img.shields.io/npm/v/maltego-mcp?color=cb3837&logo=npm)](https://www.npmjs.com/package/maltego-mcp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<h1 align="center">maltego-mcp</h1>
+
+<p align="center">
+  <a href="https://github.com/solomonneas/maltego-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/solomonneas/maltego-mcp?style=flat-square&label=release&color=2563eb" alt="latest release" /></a>
+  <a href="https://www.npmjs.com/package/maltego-mcp"><img src="https://img.shields.io/npm/v/maltego-mcp?style=flat-square&logo=npm&color=cb3837" alt="npm version" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.3-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 5.3" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 20+" /></a>
+  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP%20SDK-1.0-6f42c1?style=flat-square" alt="MCP SDK 1.0" /></a>
+  <a href="https://www.maltego.com/products/maltego-graph/"><img src="https://img.shields.io/badge/Maltego-Graph%20Desktop-f59e0b?style=flat-square" alt="Maltego Graph Desktop" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT license" /></a>
+</p>
 
 Two cooperating layers for Maltego Desktop:
 
