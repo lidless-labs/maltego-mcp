@@ -1,11 +1,13 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: { "mcp-server": "mcp-server.ts" },
   format: ["esm"],
   target: "node20",
+  platform: "node",
+  outDir: "dist",
   clean: true,
-  minify: false,
-  sourcemap: true,
-  banner: { js: "#!/usr/bin/env node" }
+  shims: true,
+  sourcemap: false,
+  dts: false,
 });

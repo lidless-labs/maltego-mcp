@@ -15,6 +15,9 @@ describe("dns tool", () => {
   it("delegates to dnsLookup", async () => {
     const tool = createDnsTool({ registry: new GraphRegistry(), config: resolveConfig({}) });
     const res = await tool.execute("t", { domain: "a.com" });
-    expect(res.details.data.a).toEqual(["1.2.3.4"]);
+    expect(res.details.ok).toBe(true);
+    if (res.details.ok) {
+      expect(res.details.data.a).toEqual(["1.2.3.4"]);
+    }
   });
 });

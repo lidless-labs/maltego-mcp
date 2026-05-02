@@ -38,9 +38,3 @@ export function resolveConfig(opts: ResolveOpts): MaltegoConfig {
     lookupTimeoutMs: pcTimeout ?? envTimeout ?? DEFAULT_TIMEOUT_MS,
   };
 }
-
-// Legacy shim — src/index.ts still calls this. Removed in Task 17.
-export interface Config { outputDir: string; lookupTimeoutMs: number; }
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  return resolveConfig({ env });
-}

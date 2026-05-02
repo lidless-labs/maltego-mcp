@@ -34,13 +34,4 @@ describe("resolveConfig", () => {
     const cfg = resolveConfig({ env: { MALTEGO_MCP_LOOKUP_TIMEOUT_MS: "-5" } });
     expect(cfg.lookupTimeoutMs).toBe(30_000);
   });
-
-  it("preserves the legacy loadConfig export shape", async () => {
-    // Existing src/index.ts calls loadConfig() with no args. Keep a thin
-    // shim so the migration is staged: this test will be deleted in Task 17
-    // once src/index.ts is replaced.
-    const { loadConfig } = await import("../../src/config.js");
-    const cfg = loadConfig({ MALTEGO_MCP_OUTPUT_DIR: "/legacy" });
-    expect(cfg.outputDir).toBe("/legacy");
-  });
 });

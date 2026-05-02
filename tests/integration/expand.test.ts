@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { GraphRegistry } from "../../src/server/registry.js";
-import { expandToolHandlers } from "../../src/tools/expand.js";
+import { createExpandDomainTool } from "../../src/tools/index.js";
 import { dnsLookup } from "../../src/lookups/dns.js";
 
 vi.mock("../../src/lookups/whois.js", () => ({
@@ -39,12 +39,14 @@ describe("integration: expand_domain writes a real .mtgx", () => {
   });
 
   it("produces a non-empty .mtgx containing the domain and its resolved IP", async () => {
-    const tools = expandToolHandlers(reg, { outputDir: tmp });
+    const config = { outputDir: tmp, lookupTimeoutMs: 30000 };
+    const expandDomainTool = createExpandDomainTool({ registry: reg, config });
     const out = join(tmp, "evil.mtgx");
-    const result = await tools.maltego_expand_domain({ domain: "evil.example", outputPath: out });
-    const fstat = await stat(result.path);
+    const result = await expandDomainTool.execute("test", { domain: "evil.example", outputPath: out });
+    const resultData = (result as any).details;
+    const fstat = await stat(resultData.path);
     expect(fstat.size).toBeGreaterThan(100);
-    const g = reg.getOrThrow(result.graphId);
+    const g = reg.getOrThrow(resultData.graphId);
     const values = g.allEntities().map((e) => e.value);
     expect(values).toContain("evil.example");
     expect(values).toContain("9.9.9.9");
@@ -55,12 +57,14 @@ describe("integration: expand_domain writes a real .mtgx", () => {
       ok: true,
       data: { domain: "multi.example", a: ["9.9.9.9", "9.9.9.10"], aaaa: [], mx: [], ns: [], txt: [] }
     });
-    const tools = expandToolHandlers(reg, { outputDir: tmp });
+    const config = { outputDir: tmp, lookupTimeoutMs: 30000 };
+    const expandDomainTool = createExpandDomainTool({ registry: reg, config });
     const out = join(tmp, "multi.mtgx");
-    const result = await tools.maltego_expand_domain({ domain: "multi.example", outputPath: out });
-    const fstat = await stat(result.path);
+    const result = await expandDomainTool.execute("test", { domain: "multi.example", outputPath: out });
+    const resultData = (result as any).details;
+    const fstat = await stat(resultData.path);
     expect(fstat.size).toBeGreaterThan(100);
-    const g = reg.getOrThrow(result.graphId);
+    const g = reg.getOrThrow(resultData.graphId);
     // domain + registrar Phrase + 1 nameserver + 2 IPs + 1 shared AS = 6 entities at minimum
     expect(g.entityCount()).toBeGreaterThanOrEqual(5);
     // verify only one AS entity exists despite two A records sharing the ASN

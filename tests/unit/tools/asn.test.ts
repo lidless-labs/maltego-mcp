@@ -15,6 +15,9 @@ describe("asn tool", () => {
   it("delegates to asnLookup", async () => {
     const tool = createAsnTool({ registry: new GraphRegistry(), config: resolveConfig({}) });
     const res = await tool.execute("t", { ip: "1.2.3.4" });
-    expect(res.details.data.asn).toBe(64512);
+    expect(res.details.ok).toBe(true);
+    if (res.details.ok) {
+      expect(res.details.data.asn).toBe(64512);
+    }
   });
 });
