@@ -100,7 +100,7 @@ Or, when running from a source checkout instead of the global npm install:
   "mcpServers": {
     "maltego": {
       "command": "node",
-      "args": ["/absolute/path/to/maltego-mcp/dist/index.js"]
+      "args": ["/absolute/path/to/maltego-mcp/dist/mcp-server.js"]
     }
   }
 }
@@ -117,12 +117,24 @@ claude mcp add maltego -- maltego-mcp
 Or from a source checkout:
 
 ```bash
-claude mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/index.js
+claude mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/mcp-server.js
 ```
 
 Add `--scope user` to make it available from any directory instead of only the current project.
 
 ### OpenClaw
+
+**Recommended: install as an OpenClaw plugin via ClawHub.**
+
+```bash
+openclaw plugins install clawhub:maltego
+systemctl --user restart openclaw-gateway
+openclaw plugins list   # confirm "maltego" is registered
+```
+
+This installs the same package as a native OpenClaw plugin — tool calls go through the plugin SDK directly instead of spawning a separate stdio MCP process. Configure `outputDir` and `lookupTimeoutMs` in OpenClaw's plugin config UI or via the JSON config file.
+
+**Or, register as a stdio MCP server (manual):**
 
 ```bash
 openclaw mcp set maltego '{
@@ -135,7 +147,7 @@ Or, when running from a source checkout:
 ```bash
 openclaw mcp set maltego '{
   "command": "node",
-  "args": ["/absolute/path/to/maltego-mcp/dist/index.js"]
+  "args": ["/absolute/path/to/maltego-mcp/dist/mcp-server.js"]
 }'
 ```
 
@@ -162,7 +174,7 @@ Or, when running from a source checkout:
 mcp_servers:
   maltego:
     command: "node"
-    args: ["/absolute/path/to/maltego-mcp/dist/index.js"]
+    args: ["/absolute/path/to/maltego-mcp/dist/mcp-server.js"]
 ```
 
 Then reload MCP from inside a Hermes session:
@@ -182,7 +194,7 @@ codex mcp add maltego -- maltego-mcp
 Or from a source checkout:
 
 ```bash
-codex mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/index.js
+codex mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/mcp-server.js
 ```
 
 Codex writes the entry to `~/.codex/config.toml` under `[mcp_servers.maltego]`. Verify with:
