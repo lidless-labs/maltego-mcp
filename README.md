@@ -1,18 +1,57 @@
 # maltego-mcp
 
+[![GitHub release](https://img.shields.io/github/v/release/solomonneas/maltego-mcp?label=release&color=blue)](https://github.com/solomonneas/maltego-mcp/releases/latest)
+[![npm](https://img.shields.io/npm/v/maltego-mcp?color=cb3837&logo=npm)](https://www.npmjs.com/package/maltego-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Two cooperating layers for Maltego Desktop:
 
-- **Phase A (TypeScript MCP server):** lets Claude author Maltego `.mtgx` graph files and run primitive OSINT lookups (whois / DNS / ASN / crt.sh). Graphs land on disk and you open them in Maltego Desktop.
-- **Phase B (Python TRX transforms in a `.mtz`):** adds right-click pivots into MISP, TheHive, Cortex, and the bundled MITRE ATT&CK dataset directly inside Maltego Desktop. See `transforms/README.md` for setup.
+- **Phase A (TypeScript MCP server):** lets an LLM author Maltego `.mtgx` graph files and run primitive OSINT lookups (whois / DNS / ASN / crt.sh). Graphs land on disk and you open them in Maltego Desktop.
+- **Phase B (Python TRX transforms in a `.mtz`):** adds right-click pivots into MISP, TheHive, Cortex, and the bundled MITRE ATT&CK dataset directly inside Maltego Desktop. See [`transforms/README.md`](transforms/README.md).
 
 The two phases share the repo, nothing else. Either layer can be uninstalled without breaking the other.
 
 ## Requirements
 
 - Node.js 20+
-- Maltego Graph Desktop installed (Basic, Pro, or Enterprise)
+- Maltego Graph Desktop (Basic, Pro, or Enterprise) for either layer to be useful
+- Phase B only: Python 3.11+ on the Maltego host
+
+## Tools (Phase A)
+
+**Graph authoring**
+- `maltego_create_graph(name)` — returns `graphId`
+- `maltego_add_entity(graphId, type, value, properties?)` — returns `entityId`
+- `maltego_add_link(graphId, from, to, label?, properties?)` — returns `linkId`
+- `maltego_save_graph(graphId, path, overwrite?)` — writes `.mtgx`
+- `maltego_load_graph(path)` — parses an existing `.mtgx` into a new handle
+
+**Primitive lookups**
+- `maltego_whois(domain)` — registrar, nameservers, dates
+- `maltego_dns(domain)` — A/AAAA/MX/NS/TXT
+- `maltego_asn(ip)` — Team Cymru ASN, prefix, country, org
+- `maltego_crtsh(domain)` — certificate transparency entries
+
+**Convenience expanders**
+- `maltego_expand_ip(ip, outputPath, overwrite?)` — IP + ASN + netblock, saved as `.mtgx`
+- `maltego_expand_domain(domain, outputPath, overwrite?)` — domain + whois + DNS + ASN per A record
+- `maltego_expand_hash(hash, outputPath, algorithm?, overwrite?)` — hash entity (extend in later versions)
+
+### Entity types
+
+Standard Maltego ontology: `IPv4Address`, `IPv6Address`, `Domain`, `URL`, `Hash`, `EmailAddress`, `Netblock`, `AS`, `Website`, `Company`, `Person`. For concepts without a standard type, use `Phrase` with a category prefix (`[T1566] Phishing`, `[TheHive] Case #42`).
+
+### Composing with other MCPs
+
+maltego-mcp does not embed third-party threat-intel clients. For MISP events, ATT&CK techniques, Cortex reports, etc., call the dedicated MCPs (`misp-mcp`, `mitre-mcp`, `cortex-mcp`, etc.) and pipe results into `maltego_add_entity` / `maltego_add_link`. Or, for in-Maltego pivots, install Phase B (below).
 
 ## Install
+
+```bash
+npm install -g maltego-mcp
+```
+
+Or from source (required for Phase B transforms):
 
 ```bash
 git clone https://github.com/solomonneas/maltego-mcp.git
@@ -21,22 +60,37 @@ npm install
 npm run build
 ```
 
-## Register with Claude Code
+## Configuration
 
-```bash
-claude mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/index.js
+Both env vars are optional.
+
+| Variable | Default | Description |
+|---|---|---|
+| `MALTEGO_MCP_OUTPUT_DIR` | `~/MaltegoGraphs` | Default output directory for `.mtgx` files |
+| `MALTEGO_MCP_LOOKUP_TIMEOUT_MS` | `30000` | Per-lookup timeout in ms (currently applied to `crt.sh` only; `whois`, `dns`, `asn` use library defaults) |
+
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "maltego": {
+      "command": "maltego-mcp"
+    }
+  }
+}
 ```
 
-## Register with Claude Desktop
-
-Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+Or, when running from a source checkout instead of the global npm install:
 
 ```json
 {
   "mcpServers": {
     "maltego": {
       "command": "node",
-      "args": ["C:\\Users\\srnea\\repos\\maltego-mcp\\dist\\index.js"]
+      "args": ["/absolute/path/to/maltego-mcp/dist/index.js"]
     }
   }
 }
@@ -44,52 +98,116 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 
 Restart Claude Desktop. The `maltego_*` tools should appear.
 
-## Environment variables
+### Claude Code
 
-- `MALTEGO_MCP_OUTPUT_DIR` - default output directory for `.mtgx` files (default: `~/MaltegoGraphs`)
-- `MALTEGO_MCP_LOOKUP_TIMEOUT_MS` - per-lookup timeout in ms (default: `30000`). Currently applied to `crt.sh` only; `whois`, `dns`, and `asn` use their underlying library defaults. Broader timeout plumbing is a known enhancement.
+```bash
+claude mcp add maltego -- maltego-mcp
+```
 
-## Tools
+Or from a source checkout:
 
-**Graph authoring**
-- `maltego_create_graph(name)` - returns graphId
-- `maltego_add_entity(graphId, type, value, properties?)` - returns entityId
-- `maltego_add_link(graphId, from, to, label?, properties?)` - returns linkId
-- `maltego_save_graph(graphId, path, overwrite?)` - writes `.mtgx`
-- `maltego_load_graph(path)` - parses existing `.mtgx` into a new handle
+```bash
+claude mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/index.js
+```
 
-**Primitive lookups**
-- `maltego_whois(domain)` - registrar, nameservers, dates
-- `maltego_dns(domain)` - A/AAAA/MX/NS/TXT
-- `maltego_asn(ip)` - Team Cymru ASN, prefix, country, org
-- `maltego_crtsh(domain)` - certificate transparency entries
+Add `--scope user` to make it available from any directory instead of only the current project.
 
-**Convenience**
-- `maltego_expand_ip(ip, outputPath, overwrite?)` - IP + ASN + netblock, saved as `.mtgx`
-- `maltego_expand_domain(domain, outputPath, overwrite?)` - domain + whois + DNS + ASN per A record
-- `maltego_expand_hash(hash, outputPath, algorithm?, overwrite?)` - hash entity (extend in later versions)
+### OpenClaw
 
-## Entity types
+```bash
+openclaw mcp set maltego '{
+  "command": "maltego-mcp"
+}'
+```
 
-Standard Maltego ontology: `IPv4Address`, `IPv6Address`, `Domain`, `URL`, `Hash`, `EmailAddress`, `Netblock`, `AS`, `Website`, `Company`, `Person`. For concepts without a standard type, use `Phrase` with a category prefix (`[T1566] Phishing`, `[TheHive] Case #42`).
+Or, when running from a source checkout:
 
-## Composing with other MCPs
+```bash
+openclaw mcp set maltego '{
+  "command": "node",
+  "args": ["/absolute/path/to/maltego-mcp/dist/index.js"]
+}'
+```
 
-maltego-mcp does not embed third-party threat-intel clients. For MISP events, ATT&CK techniques, Cortex reports, etc., call the dedicated MCPs (`misp-mcp`, `mitre-mcp`, `cortex-mcp`, etc.) and pipe the results into `maltego_add_entity` / `maltego_add_link`.
+Then restart the OpenClaw gateway so the new server is picked up:
+
+```bash
+systemctl --user restart openclaw-gateway
+openclaw mcp list   # confirm "maltego" is registered
+```
+
+### Hermes Agent
+
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) reads MCP config from `~/.hermes/config.yaml` under the `mcp_servers` key. Add an entry:
+
+```yaml
+mcp_servers:
+  maltego:
+    command: "maltego-mcp"
+```
+
+Or, when running from a source checkout:
+
+```yaml
+mcp_servers:
+  maltego:
+    command: "node"
+    args: ["/absolute/path/to/maltego-mcp/dist/index.js"]
+```
+
+Then reload MCP from inside a Hermes session:
+
+```
+/reload-mcp
+```
+
+### Codex CLI
+
+[Codex CLI](https://github.com/openai/codex) registers MCP servers via `codex mcp add`:
+
+```bash
+codex mcp add maltego -- maltego-mcp
+```
+
+Or from a source checkout:
+
+```bash
+codex mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/index.js
+```
+
+Codex writes the entry to `~/.codex/config.toml` under `[mcp_servers.maltego]`. Verify with:
+
+```bash
+codex mcp list
+```
 
 ## Phase B: in-Maltego transforms (.mtz)
 
-A separate Python transform layer ships right-click pivots into MISP,
-TheHive, Cortex, and ATT&CK directly inside Maltego Desktop. See
-`transforms/README.md` for full setup.
+A separate Python transform layer ships right-click pivots into MISP, TheHive, Cortex, and ATT&CK directly inside Maltego Desktop. See [`transforms/README.md`](transforms/README.md) for full setup.
 
-Quick start:
+Quick start (from a source checkout, on the Maltego host):
 
 ```bash
-npm run setup:transforms
-npm run build:mtz
+npm run setup:transforms     # creates transforms/.venv with maltego-trx pinned
+npm run build:mtz            # writes dist/maltego-mcp-transforms.mtz
 # Then in Maltego: Import -> Configuration -> dist/maltego-mcp-transforms.mtz
 ```
+
+The build bakes the absolute path of `transforms/.venv` into the manifest, so the `.mtz` is tied to the host that built it. Re-run `npm run build:mtz` if the repo moves.
+
+## Example prompts
+
+> Build me a Maltego graph for the domain `example.com` with whois, DNS, and ASN expansion.
+
+Calls `maltego_expand_domain` and returns the path to the saved `.mtgx`.
+
+> Pivot from this IP — give me ASN + netblock as a Maltego graph.
+
+Calls `maltego_expand_ip`.
+
+> Look up the cert transparency log for `example.com`.
+
+Calls `maltego_crtsh` and returns matching certificates.
 
 ## Development
 
@@ -100,3 +218,7 @@ npm run test:all
 npm run typecheck
 npm run test:transforms # Phase B pytest suite
 ```
+
+## License
+
+[MIT](LICENSE)
