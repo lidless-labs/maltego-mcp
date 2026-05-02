@@ -1,0 +1,21 @@
+{
+  "id": "maltego",
+  "name": "Maltego",
+  "description": "Author Maltego .mtgx graph files and run primitive OSINT lookups (whois / DNS / ASN / crt.sh) from inside OpenClaw. Phase A only; Phase B in-Maltego transforms ship as a separate .mtz import.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "outputDir": {
+        "type": "string",
+        "description": "Default directory for saved .mtgx graph files. Defaults to ~/MaltegoGraphs."
+      },
+      "lookupTimeoutMs": {
+        "type": "number",
+        "minimum": 1000,
+        "default": 30000,
+        "description": "Per-lookup timeout in ms. Currently applied to crt.sh only; whois/dns/asn use library defaults."
+      }
+    }
+  }
+}
