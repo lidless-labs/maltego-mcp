@@ -1,0 +1,20 @@
+import { describe, it, expect, vi } from "vitest";
+import { GraphRegistry } from "../../../src/server/registry.js";
+import { resolveConfig } from "../../../src/config.js";
+
+vi.mock("../../../src/lookups/dns.js", () => ({
+  dnsLookup: vi.fn().mockResolvedValue({
+    ok: true,
+    data: { domain: "a.com", a: ["1.2.3.4"], aaaa: [], mx: [], ns: [], txt: [] },
+  }),
+}));
+
+import { createDnsTool } from "../../../src/tools/dns.js";
+
+describe("dns tool", () => {
+  it("delegates to dnsLookup", async () => {
+    const tool = createDnsTool({ registry: new GraphRegistry(), config: resolveConfig({}) });
+    const res = await tool.execute("t", { domain: "a.com" });
+    expect(res.details.data.a).toEqual(["1.2.3.4"]);
+  });
+});
