@@ -1,6 +1,6 @@
 {
   "name": "maltego-mcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "MCP server for authoring Maltego graph files and running primitive OSINT lookups.",
   "type": "module",
   "main": "dist/index.js",
@@ -43,10 +43,12 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "jszip": "^3.10.1",
+    "@sinclair/typebox": "^0.34.49",
     "fast-xml-parser": "^4.3.0",
+    "jszip": "^3.10.1",
+    "undici": "^6.0.0",
     "whois": "^2.14.0",
-    "undici": "^6.0.0"
+    "zod": "^4.4.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
