@@ -19,14 +19,15 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "demo:basic": "npm run build && node dist/demo-basic.js",
     "test": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:all": "vitest run",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build",
-    "setup:transforms": "py -3 scripts/setup_venv.py",
-    "test:transforms": "transforms/.venv/Scripts/python.exe -m pytest tests/transforms",
-    "build:mtz": "py -3 scripts/build_mtz.py"
+    "setup:transforms": "node scripts/python-tool.mjs setup",
+    "test:transforms": "node scripts/python-tool.mjs test",
+    "build:mtz": "node scripts/python-tool.mjs build-mtz"
   },
   "license": "MIT",
   "author": "Solomon Neas <srneas@gmail.com>",

@@ -27,6 +27,16 @@ The two phases share the repo, nothing else. Either layer can be uninstalled wit
 - Maltego Graph Desktop (Basic, Pro, or Enterprise) for either layer to be useful
 - Phase B only: Python 3.11+ on the Maltego host
 
+### Maltego Basic compatibility
+
+The default workflow is Basic-friendly: generate `.mtgx` files with Phase A,
+then open or import them in Maltego Graph Desktop. The included demo graph is
+kept under 24 entities so it stays useful on the Basic plan's per-transform
+result limit. Local TRX transforms are supported on Basic, but their live
+results are still subject to your Maltego plan and connector limits. See
+Maltego's current [products and plans](https://docs.maltego.com/en/support/solutions/articles/15000036759-maltego-products-and-plans)
+and [Basic data access notes](https://docs.maltego.com/en/support/solutions/articles/15000058711-data-pass-and-connectors-for-maltego-community-edition-version-4-8-0-).
+
 ## Tools (Phase A)
 
 **Graph authoring**
@@ -69,6 +79,27 @@ cd maltego-mcp
 npm install
 npm run build
 ```
+
+## Basic-friendly demo graph
+
+Generate a no-network `.mtgx` demo that shows how an IOC can connect to MISP,
+TheHive, Cortex, MITRE ATT&CK, and a triage playbook without requiring API keys
+or paid Maltego connectors:
+
+```bash
+npm run demo:basic
+```
+
+Output defaults to `dist/maltego-mcp-basic-soc-demo.mtgx`. Open that file in
+Maltego Graph Desktop. To choose a different path:
+
+```bash
+npm run demo:basic -- --output ~/MaltegoGraphs/basic-soc-demo.mtgx
+```
+
+The demo uses documentation-safe indicators such as `203.0.113.42` and
+`example.invalid`; it is meant to prove the graph format and visual workflow,
+not to perform live enrichment.
 
 ## Configuration
 

@@ -87,7 +87,10 @@ npm run test:transforms
 ## Edition notes
 
 Built and tested on Maltego Graph (Desktop) Basic 4.11.2. Local TRX import
-is edition-agnostic. iTDS is not used (Pro/Enterprise only).
+is supported on Basic. iTDS is not used (Pro/Enterprise only). Keep transform
+outputs small enough for Basic's per-transform result limit; the Phase A demo
+graph in the main README is intentionally under 24 entities and does not rely
+on live transforms, API keys, or paid connectors.
 
 ## Refreshing the bundled MITRE ATT&CK dataset
 
@@ -96,6 +99,9 @@ a reduced form of MITRE's STIX bundle. To refresh:
 
 ```bash
 curl -L -o /tmp/enterprise-attack.json https://github.com/mitre/cti/raw/master/enterprise-attack/enterprise-attack.json
-transforms/.venv/Scripts/python.exe scripts/reduce_attack_dataset.py /tmp/enterprise-attack.json transforms/data/attack_techniques.json
+transforms/.venv/bin/python scripts/reduce_attack_dataset.py /tmp/enterprise-attack.json transforms/data/attack_techniques.json
 npm run build:mtz
 ```
+
+On Windows, use `transforms/.venv/Scripts/python.exe` for the dataset refresh
+command instead.

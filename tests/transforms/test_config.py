@@ -60,6 +60,8 @@ def test_default_config_dir_resolution(monkeypatch: pytest.MonkeyPatch, tmp_path
     from transforms.shared.config import default_config_dir
 
     p = default_config_dir()
-    assert p.name == "maltego-mcp"
     if os.name == "nt":
+        assert p.name == "maltego-mcp"
         assert "Roaming" in str(p)
+    else:
+        assert p.name == ".maltego-mcp"
