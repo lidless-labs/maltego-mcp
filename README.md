@@ -56,6 +56,7 @@ and [Basic data access notes](https://docs.maltego.com/en/support/solutions/arti
 - `maltego_expand_ip(ip, outputPath, overwrite?)` — IP + ASN + netblock, saved as `.mtgx`
 - `maltego_expand_domain(domain, outputPath, overwrite?)` — domain + whois + DNS + ASN per A record
 - `maltego_expand_hash(hash, outputPath, algorithm?, overwrite?)` — hash entity (extend in later versions)
+- `maltego_build_ioc_graph(ioc, outputPath, ...)` — one IOC plus enrichment summaries from other MCPs, saved as `.mtgx`
 
 ### Entity types
 
@@ -64,6 +65,13 @@ Standard Maltego ontology: `IPv4Address`, `IPv6Address`, `Domain`, `URL`, `Hash`
 ### Composing with other MCPs
 
 maltego-mcp does not embed third-party threat-intel clients. For MISP events, ATT&CK techniques, Cortex reports, etc., call the dedicated MCPs (`misp-mcp`, `mitre-mcp`, `cortex-mcp`, etc.) and pipe results into `maltego_add_entity` / `maltego_add_link`. Or, for in-Maltego pivots, install Phase B (below).
+
+For the common "one IOC, many enrichments" case, use
+`maltego_build_ioc_graph`: call `misp-mcp`, `thehive-mcp`, `cortex-mcp`, and
+`mitre-mcp` first, summarize their results into the tool's `mispEvents`,
+`thehiveCases`, `cortexReports`, and `attackTechniques` arrays, then save one
+combined `.mtgx`. The tool keeps service calls out of this package while still
+making the graph bridge a single MCP call.
 
 ## Install
 
@@ -261,6 +269,26 @@ Calls `maltego_expand_ip`.
 > Look up the cert transparency log for `example.com`.
 
 Calls `maltego_crtsh` and returns matching certificates.
+
+> Build a Maltego graph for this hash using the MISP events, TheHive cases,
+> Cortex reports, and ATT&CK techniques we already gathered.
+
+Calls `maltego_build_ioc_graph` with an input shaped like:
+
+```json
+{
+  "ioc": {
+    "type": "Hash",
+    "value": "d41d8cd98f00b204e9800998ecf8427e",
+    "properties": { "algorithm": "md5" }
+  },
+  "outputPath": "hash-investigation.mtgx",
+  "mispEvents": [{ "id": 1001, "info": "demo phishing cluster" }],
+  "thehiveCases": [{ "id": 42, "title": "Phishing triage", "severity": "high" }],
+  "cortexReports": [{ "analyzer": "HashLookup", "verdict": "suspicious" }],
+  "attackTechniques": [{ "id": "T1566", "name": "Phishing", "tactic": "Initial Access" }]
+}
+```
 
 ## Development
 

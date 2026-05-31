@@ -4,8 +4,8 @@ import { resolveConfig } from "../../../src/config.js";
 import { ALL_TOOL_FACTORIES } from "../../../src/tools/index.js";
 
 describe("tool barrel", () => {
-  it("exports exactly 12 factories", () => {
-    expect(ALL_TOOL_FACTORIES.length).toBe(12);
+  it("exports exactly 13 factories", () => {
+    expect(ALL_TOOL_FACTORIES.length).toBe(13);
   });
 
   it("exposes the expected tool names", () => {
@@ -15,6 +15,7 @@ describe("tool barrel", () => {
       "maltego_add_entity",
       "maltego_add_link",
       "maltego_asn",
+      "maltego_build_ioc_graph",
       "maltego_create_graph",
       "maltego_crtsh",
       "maltego_dns",

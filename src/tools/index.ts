@@ -10,6 +10,7 @@ import { createCrtshTool } from "./crtsh.js";
 import { createExpandIpTool } from "./expand-ip.js";
 import { createExpandDomainTool } from "./expand-domain.js";
 import { createExpandHashTool } from "./expand-hash.js";
+import { createBuildIocGraphTool } from "./build-ioc-graph.js";
 
 export {
   createCreateGraphTool,
@@ -24,6 +25,7 @@ export {
   createExpandIpTool,
   createExpandDomainTool,
   createExpandHashTool,
+  createBuildIocGraphTool,
 };
 
 export const ALL_TOOL_FACTORIES = [
@@ -39,6 +41,7 @@ export const ALL_TOOL_FACTORIES = [
   createExpandIpTool,
   createExpandDomainTool,
   createExpandHashTool,
+  createBuildIocGraphTool,
 ] as const;
 
 // Mapping of tool name → mcpInputShape (zod), used by the MCP entry to bind
@@ -55,6 +58,7 @@ import { mcpInputShape as crtshShape } from "./crtsh.js";
 import { mcpInputShape as expandIpShape } from "./expand-ip.js";
 import { mcpInputShape as expandDomainShape } from "./expand-domain.js";
 import { mcpInputShape as expandHashShape } from "./expand-hash.js";
+import { mcpInputShape as buildIocGraphShape } from "./build-ioc-graph.js";
 
 export const MCP_INPUT_SHAPES: Record<string, Record<string, unknown>> = {
   maltego_create_graph: createGraphShape,
@@ -69,4 +73,5 @@ export const MCP_INPUT_SHAPES: Record<string, Record<string, unknown>> = {
   maltego_expand_ip: expandIpShape,
   maltego_expand_domain: expandDomainShape,
   maltego_expand_hash: expandHashShape,
+  maltego_build_ioc_graph: buildIocGraphShape,
 };

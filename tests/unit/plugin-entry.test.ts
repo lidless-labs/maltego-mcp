@@ -16,7 +16,7 @@ describe("OpenClaw plugin entry", () => {
     expect(pluginEntry.name).toBe("Maltego");
   });
 
-  it("register() with full mode wires 12 tools", () => {
+  it("register() with full mode wires 13 tools", () => {
     const registered: Array<{ name: string }> = [];
     const fakeApi = {
       registrationMode: "full" as const,
@@ -24,7 +24,7 @@ describe("OpenClaw plugin entry", () => {
       registerTool: (t: { name: string }) => { registered.push(t); },
     };
     pluginEntry.register(fakeApi as unknown as Parameters<typeof pluginEntry.register>[0]);
-    expect(registered.length).toBe(12);
+    expect(registered.length).toBe(13);
     expect(registered.map((t) => t.name).sort()).toContain("maltego_create_graph");
   });
 
