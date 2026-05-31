@@ -1,6 +1,6 @@
 {
   "name": "maltego-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "MCP server for authoring Maltego graph files and running primitive OSINT lookups.",
   "type": "module",
   "main": "dist/mcp-server.js",
@@ -14,6 +14,7 @@
     "src",
     "openclaw.plugin.json",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
