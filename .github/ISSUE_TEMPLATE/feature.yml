@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest a new tool, lookup, entity mapping, or transform for maltego-mcp.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the investigation or workflow that is awkward today.
+      placeholder: |
+        When I pivot from a domain I also want passive-DNS history in the graph,
+        but there is no tool for it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What tool, lookup, entity type, or transform would you add? Sketch the inputs and the graph it should produce.
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer?
+      options:
+        - Phase A (TypeScript MCP server)
+        - Phase B (Python transforms)
+        - Both
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Can this already be done by composing existing tools or another MCP? What is missing?
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This does not require embedding a third-party threat-intel client (maltego-mcp composes with the dedicated MCPs for those).
+          required: false

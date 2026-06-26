@@ -1,0 +1,59 @@
+name: Bug report
+description: Something is broken in maltego-mcp, such as a tool, a lookup, the .mtgx output, or a Phase B transform.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Which tool or command did you run, and what did you expect versus what you got?
+      placeholder: |
+        I called `maltego_expand_domain` for `example.com` and got X.
+        I expected a saved `.mtgx` with Y.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: maltego-mcp version
+      description: npm version or the commit you built from.
+      placeholder: 0.3.0 (or commit sha)
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      description: Which client launched the server?
+      placeholder: Claude Desktop, Claude Code, OpenClaw, Codex CLI, Hermes, etc.
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: 20.18.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: Ubuntu 24.04, macOS 14.5, Windows 11, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Full output
+      description: Paste the full stdout + stderr or the tool error. Keep enough for us to reproduce.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: scrub
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I have scrubbed any personal hostnames, private IPs, tokens, or absolute paths from this report.
+          required: true
