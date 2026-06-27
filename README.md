@@ -1,21 +1,20 @@
 <p align="center">
-  <img src="docs/assets/maltego-mcp-banner.jpg" alt="Watercolor transform pivot map for maltego-mcp" width="100%" />
+  <img src="docs/assets/maltego-mcp-banner.jpg" alt="maltego-mcp banner" width="900">
 </p>
 
 <h1 align="center">maltego-mcp</h1>
 
-<p align="center"><b>An MCP server that lets an LLM author Maltego graph files and run primitive OSINT lookups.</b></p>
-
-<p align="center">
-  <a href="https://github.com/solomonneas/maltego-mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/solomonneas/maltego-mcp/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
-  <a href="https://github.com/solomonneas/maltego-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/solomonneas/maltego-mcp?style=for-the-badge&label=release&color=2563eb" alt="latest release" /></a>
-  <a href="https://www.npmjs.com/package/maltego-mcp"><img src="https://img.shields.io/npm/v/maltego-mcp?style=for-the-badge&logo=npm&color=cb3837" alt="npm version" /></a>
-  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-server-6f42c1?style=for-the-badge" alt="MCP server" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT license" /></a>
-</p>
+<p align="center"><strong>An MCP server that lets an LLM author Maltego graph files and run primitive OSINT lookups.</strong></p>
 
 <p align="center">
   <a href="https://lidless.dev/maltego-mcp"><b>Website</b></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/npm/v/maltego-mcp?style=for-the-badge&logo=npm&label=npm" alt="npm version">
+  <img src="https://img.shields.io/github/actions/workflow/status/lidless-labs/maltego-mcp/ci.yml?branch=main&style=for-the-badge&label=ci" alt="ci">
+  <img src="https://img.shields.io/badge/MCP-server-8A2BE2?style=for-the-badge" alt="MCP server">
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="license MIT">
 </p>
 
 maltego-mcp is a Model Context Protocol (MCP) server that lets an LLM author Maltego `.mtgx` graph files and run primitive OSINT lookups (whois, DNS, ASN, crt.sh) from inside an agent session. It exists because graph-driven OSINT investigation in Maltego Desktop is normally point-and-click work, and an agent that can already reason over indicators should be able to produce the graph directly instead of dictating clicks to a human. It differs from a Maltego transform pack by living in the agent layer first: the graph is built and saved to disk by tool calls, then opened in Maltego, so it works even on the Basic plan and without paid connectors. A second optional layer (Phase B) does add native right-click transforms inside Maltego Desktop for teams that want that too.
@@ -30,6 +29,21 @@ It ships as two cooperating layers:
 - **Phase B (Python TRX transforms in a `.mtz`):** adds right-click pivots into MISP, TheHive, Cortex, and the bundled MITRE ATT&CK dataset directly inside Maltego Desktop. See [`transforms/README.md`](transforms/README.md).
 
 The two phases share the repo, nothing else. Either layer can be uninstalled without breaking the other.
+
+## Install
+
+```bash
+npm install -g maltego-mcp
+```
+
+Or from source (required for Phase B transforms):
+
+```bash
+git clone https://github.com/solomonneas/maltego-mcp.git
+cd maltego-mcp
+npm install
+npm run build
+```
 
 ## Quickstart
 
@@ -103,89 +117,6 @@ For the common "one IOC, many enrichments" case, use
 `thehiveCases`, `cortexReports`, and `attackTechniques` arrays, then save one
 combined `.mtgx`. The tool keeps service calls out of this package while still
 making the graph bridge a single MCP call.
-
-## Why not a Maltego transform pack alone?
-
-Native Maltego transforms are great once an investigation is already open in the
-Desktop client, but they assume a human is driving the canvas and, for live
-remote data, often a paid plan or connector. maltego-mcp puts graph authoring in
-the agent layer so an LLM can build and save a `.mtgx` from indicators it is
-already reasoning about, with no canvas clicks and no connector requirement. If
-you also want in-Maltego right-click pivots, Phase B ships them as a `.mtz` you
-import. You are not forced to choose: run the MCP server, the transforms, or
-both.
-
-## Why not just hand the LLM raw whois/DNS tooling?
-
-You can, but then the model has to remember the Maltego `.mtgx` XML format,
-entity ontology, and link wiring on every call. maltego-mcp encodes that once:
-the lookups return normalized fields, and the graph tools emit a valid `.mtgx`
-that opens cleanly in Maltego Desktop. The expanders bundle the common pivots
-(IP to ASN to netblock, domain to whois to DNS to ASN) into one call so the
-agent does not re-derive them each time.
-
-## What maltego-mcp is not
-
-- **Not a Maltego replacement.** It produces `.mtgx` files; you still open and
-  drive them in Maltego Graph Desktop.
-- **Not a threat-intel platform.** It does not embed MISP, TheHive, Cortex, or
-  VirusTotal clients. It composes with the dedicated MCPs for those.
-- **Not a paid-connector bypass.** Live transform results are still bound by your
-  Maltego plan and connector limits.
-- **Not a bulk scanner.** The lookups are primitive, single-target enrichments
-  meant to build a graph, not a high-volume reconnaissance engine.
-
-## Requirements
-
-- Node.js 20+
-- Maltego Graph Desktop (Basic, Pro, or Enterprise) for either layer to be useful
-- Phase B only: Python 3.11+ on the Maltego host
-
-### Maltego Basic compatibility
-
-The default workflow is Basic-friendly: generate `.mtgx` files with Phase A,
-then open or import them in Maltego Graph Desktop. The included demo graph is
-kept under 24 entities so it stays useful on the Basic plan's per-transform
-result limit. Local TRX transforms are supported on Basic, but their live
-results are still subject to your Maltego plan and connector limits. See
-Maltego's current [products and plans](https://docs.maltego.com/en/support/solutions/articles/15000036759-maltego-products-and-plans)
-and [Basic data access notes](https://docs.maltego.com/en/support/solutions/articles/15000058711-data-pass-and-connectors-for-maltego-community-edition-version-4-8-0-).
-
-## Install
-
-```bash
-npm install -g maltego-mcp
-```
-
-Or from source (required for Phase B transforms):
-
-```bash
-git clone https://github.com/solomonneas/maltego-mcp.git
-cd maltego-mcp
-npm install
-npm run build
-```
-
-## Basic-friendly demo graph
-
-Generate a no-network `.mtgx` demo that shows how an IOC can connect to MISP,
-TheHive, Cortex, MITRE ATT&CK, and a triage playbook without requiring API keys
-or paid Maltego connectors:
-
-```bash
-npm run demo:basic
-```
-
-Output defaults to `dist/maltego-mcp-basic-soc-demo.mtgx`. Open that file in
-Maltego Graph Desktop. To choose a different path:
-
-```bash
-npm run demo:basic -- --output ~/MaltegoGraphs/basic-soc-demo.mtgx
-```
-
-The demo uses documentation-safe indicators such as `203.0.113.42` and
-`example.invalid`; it is meant to prove the graph format and visual workflow,
-not to perform live enrichment.
 
 ## Configuration
 
@@ -310,6 +241,43 @@ codex mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/mcp-server.js
 
 Codex writes the entry to `~/.codex/config.toml` under `[mcp_servers.maltego]`. Verify with `codex mcp list`.
 
+## Requirements
+
+- Node.js 20+
+- Maltego Graph Desktop (Basic, Pro, or Enterprise) for either layer to be useful
+- Phase B only: Python 3.11+ on the Maltego host
+
+### Maltego Basic compatibility
+
+The default workflow is Basic-friendly: generate `.mtgx` files with Phase A,
+then open or import them in Maltego Graph Desktop. The included demo graph is
+kept under 24 entities so it stays useful on the Basic plan's per-transform
+result limit. Local TRX transforms are supported on Basic, but their live
+results are still subject to your Maltego plan and connector limits. See
+Maltego's current [products and plans](https://docs.maltego.com/en/support/solutions/articles/15000036759-maltego-products-and-plans)
+and [Basic data access notes](https://docs.maltego.com/en/support/solutions/articles/15000058711-data-pass-and-connectors-for-maltego-community-edition-version-4-8-0-).
+
+## Basic-friendly demo graph
+
+Generate a no-network `.mtgx` demo that shows how an IOC can connect to MISP,
+TheHive, Cortex, MITRE ATT&CK, and a triage playbook without requiring API keys
+or paid Maltego connectors:
+
+```bash
+npm run demo:basic
+```
+
+Output defaults to `dist/maltego-mcp-basic-soc-demo.mtgx`. Open that file in
+Maltego Graph Desktop. To choose a different path:
+
+```bash
+npm run demo:basic -- --output ~/MaltegoGraphs/basic-soc-demo.mtgx
+```
+
+The demo uses documentation-safe indicators such as `203.0.113.42` and
+`example.invalid`; it is meant to prove the graph format and visual workflow,
+not to perform live enrichment.
+
 ## Phase B: in-Maltego transforms (.mtz)
 
 A separate Python transform layer ships right-click pivots into MISP, TheHive, Cortex, and ATT&CK directly inside Maltego Desktop. See [`transforms/README.md`](transforms/README.md) for full setup.
@@ -357,6 +325,37 @@ Calls `maltego_build_ioc_graph` with an input shaped like:
   "attackTechniques": [{ "id": "T1566", "name": "Phishing", "tactic": "Initial Access" }]
 }
 ```
+
+## Why not a Maltego transform pack alone?
+
+Native Maltego transforms are great once an investigation is already open in the
+Desktop client, but they assume a human is driving the canvas and, for live
+remote data, often a paid plan or connector. maltego-mcp puts graph authoring in
+the agent layer so an LLM can build and save a `.mtgx` from indicators it is
+already reasoning about, with no canvas clicks and no connector requirement. If
+you also want in-Maltego right-click pivots, Phase B ships them as a `.mtz` you
+import. You are not forced to choose: run the MCP server, the transforms, or
+both.
+
+## Why not just hand the LLM raw whois/DNS tooling?
+
+You can, but then the model has to remember the Maltego `.mtgx` XML format,
+entity ontology, and link wiring on every call. maltego-mcp encodes that once:
+the lookups return normalized fields, and the graph tools emit a valid `.mtgx`
+that opens cleanly in Maltego Desktop. The expanders bundle the common pivots
+(IP to ASN to netblock, domain to whois to DNS to ASN) into one call so the
+agent does not re-derive them each time.
+
+## What maltego-mcp is not
+
+- **Not a Maltego replacement.** It produces `.mtgx` files; you still open and
+  drive them in Maltego Graph Desktop.
+- **Not a threat-intel platform.** It does not embed MISP, TheHive, Cortex, or
+  VirusTotal clients. It composes with the dedicated MCPs for those.
+- **Not a paid-connector bypass.** Live transform results are still bound by your
+  Maltego plan and connector limits.
+- **Not a bulk scanner.** The lookups are primitive, single-target enrichments
+  meant to build a graph, not a high-volume reconnaissance engine.
 
 ## Development
 
