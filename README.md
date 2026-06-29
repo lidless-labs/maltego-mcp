@@ -257,6 +257,34 @@ results are still subject to your Maltego plan and connector limits. See
 Maltego's current [products and plans](https://docs.maltego.com/en/support/solutions/articles/15000036759-maltego-products-and-plans)
 and [Basic data access notes](https://docs.maltego.com/en/support/solutions/articles/15000058711-data-pass-and-connectors-for-maltego-community-edition-version-4-8-0-).
 
+## CLI
+
+The same package ships a read-only control CLI, `maltegoctl`, for shells, cron, and CI. It shares the lookup and graph-reading tools with the MCP server and reads the same env config. It exposes only the read/inspect surface: the OSINT lookups (whois, DNS, ASN, crt.sh) and a `.mtgx` inspector. Graph authoring, saving, and the `.mtgx` expanders stay in the MCP/plugin surface, because their primary effect is writing a file to disk.
+
+```bash
+npx maltego-mcp@latest whois example.com
+# or, installed globally:
+maltegoctl whois example.com
+maltegoctl dns example.com
+maltegoctl asn 192.0.2.10
+maltegoctl crtsh example.com
+maltegoctl inspect graph.mtgx        # parse an existing .mtgx, list entities + links
+maltegoctl dns example.com --json    # raw JSON for piping
+```
+
+Run `maltegoctl help` for the full command and flag list. `--json` emits raw JSON instead of the concise human-readable summary. `inspect` reads from inside `MALTEGO_MCP_OUTPUT_DIR` only and never writes; the lookup tools make outbound queries but mutate nothing. Exit codes: `0` success, `1` runtime error (a lookup failed, the host was unreachable, or the `.mtgx` could not be read), `2` usage error (unknown command/flag or a missing argument).
+
+Environment:
+
+| Variable | Default | Description |
+|---|---|---|
+| `MALTEGO_MCP_OUTPUT_DIR` | `~/MaltegoGraphs` | Base directory `inspect` paths are confined to |
+| `MALTEGO_MCP_LOOKUP_TIMEOUT_MS` | `30000` | Per-lookup timeout in ms (applied to `crtsh` only) |
+
+### Starting the MCP server
+
+`maltegoctl mcp` (or the back-compat `maltego-mcp` bin) starts the stdio MCP server. If a launcher referenced the file path `dist/mcp-server.js` directly, it keeps working; new launchers can point at `dist/mcp-bin.js` (or `dist/cli.js mcp`). Launchers that use the `maltego-mcp` bin name need no change.
+
 ## Basic-friendly demo graph
 
 Generate a no-network `.mtgx` demo that shows how an IOC can connect to MISP,

@@ -5,11 +5,14 @@
   "type": "module",
   "main": "dist/mcp-server.js",
   "bin": {
-    "maltego-mcp": "dist/mcp-server.js"
+    "maltego-mcp": "dist/mcp-bin.js",
+    "maltegoctl": "dist/cli.js"
   },
   "files": [
     "dist",
     "index.ts",
+    "cli.ts",
+    "mcp-bin.ts",
     "mcp-server.ts",
     "src",
     "openclaw.plugin.json",
@@ -20,6 +23,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "start": "node dist/cli.js mcp",
     "demo:basic": "npm run build && node dist/demo-basic.js",
     "test": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
