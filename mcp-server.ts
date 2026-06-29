@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -10,7 +12,14 @@ import { toToolResponse } from "./src/server/errors.js";
 
 const VERSION = "0.3.0";
 
-async function main(): Promise<void> {
+/**
+ * Start the maltego-mcp stdio server. Extracted from the former top-level
+ * `main()` so the CLI (`maltegoctl mcp`) and the `mcp-bin.ts` entrypoint can
+ * both reuse it without forking a child process. Behavior is identical to the
+ * pre-CLI server: same tools, same draft-07 `$schema` stripping, same stderr
+ * ready line.
+ */
+export async function serve(): Promise<void> {
   const config = resolveConfig({ env: process.env });
   const registry = new GraphRegistry();
   const deps = { registry, config };
@@ -53,7 +62,22 @@ async function main(): Promise<void> {
   console.error(`maltego-mcp ${VERSION} ready (output dir: ${config.outputDir})`);
 }
 
-main().catch((err) => {
-  console.error("fatal:", err);
-  process.exit(1);
-});
+// True when this module is the process entrypoint. process.argv[1] is often a
+// symlink (npm installs the bin as a link); resolve it before comparing so the
+// server still auto-starts when launched directly as `dist/mcp-server.js`.
+const isEntrypoint = (() => {
+  const arg = process.argv[1];
+  if (typeof arg !== "string") return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(arg)).href;
+  } catch {
+    return false;
+  }
+})();
+
+if (isEntrypoint) {
+  serve().catch((err) => {
+    console.error("fatal:", err);
+    process.exit(1);
+  });
+}
