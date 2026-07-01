@@ -11,10 +11,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/npm/v/maltego-mcp?style=for-the-badge&logo=npm&label=npm" alt="npm version">
-  <img src="https://img.shields.io/github/actions/workflow/status/lidless-labs/maltego-mcp/ci.yml?branch=main&style=for-the-badge&label=ci" alt="ci">
-  <img src="https://img.shields.io/badge/MCP-server-8A2BE2?style=for-the-badge" alt="MCP server">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="license MIT">
+  <img src="https://shieldcn.dev/npm/maltego-mcp.svg" alt="npm version">
+  <img src="https://shieldcn.dev/github/ci/lidless-labs/maltego-mcp.svg?branch=main&workflow=ci.yml" alt="ci">
+  <img src="https://shieldcn.dev/badge/MCP-server-8A2BE2.svg" alt="MCP server">
+  <img src="https://shieldcn.dev/badge/license-MIT-green.svg" alt="license MIT">
 </p>
 
 maltego-mcp is a Model Context Protocol (MCP) server that lets an LLM author Maltego `.mtgx` graph files and run primitive OSINT lookups (whois, DNS, ASN, crt.sh) from inside an agent session. It exists because graph-driven OSINT investigation in Maltego Desktop is normally point-and-click work, and an agent that can already reason over indicators should be able to produce the graph directly instead of dictating clicks to a human. It differs from a Maltego transform pack by living in the agent layer first: the graph is built and saved to disk by tool calls, then opened in Maltego, so it works even on the Basic plan and without paid connectors. A second optional layer (Phase B) does add native right-click transforms inside Maltego Desktop for teams that want that too.
