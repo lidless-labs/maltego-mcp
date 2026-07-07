@@ -1,13 +1,13 @@
 {
   "name": "maltego-mcp",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "MCP server for authoring Maltego graph files and running primitive OSINT lookups.",
   "type": "module",
   "main": "dist/mcp-server.js",
   "bin": {
-    "maltegoctrl": "./dist/cli.js",
-    "maltego-mcp": "./dist/mcp-bin.js",
-    "maltegoctl": "./dist/cli.js"
+    "maltegoctrl": "dist/cli.js",
+    "maltego-mcp": "dist/mcp-bin.js",
+    "maltegoctl": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -17,7 +17,16 @@
     "mcp-server.ts",
     "scripts",
     "src",
-    "transforms",
+    "transforms/README.md",
+    "transforms/__init__.py",
+    "transforms/extensions.py",
+    "transforms/project.py",
+    "transforms/pyproject.toml",
+    "transforms/requirements.txt",
+    "transforms/requirements-dev.txt",
+    "transforms/data",
+    "transforms/discoverable/**/*.py",
+    "transforms/shared/**/*.py",
     "openclaw.plugin.json",
     "README.md",
     "CHANGELOG.md",
