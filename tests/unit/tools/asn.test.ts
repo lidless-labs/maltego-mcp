@@ -10,11 +10,16 @@ vi.mock("../../../src/lookups/asn.js", () => ({
 }));
 
 import { createAsnTool } from "../../../src/tools/asn.js";
+import { asnLookup } from "../../../src/lookups/asn.js";
 
 describe("asn tool", () => {
   it("delegates to asnLookup", async () => {
-    const tool = createAsnTool({ registry: new GraphRegistry(), config: resolveConfig({}) });
+    const tool = createAsnTool({
+      registry: new GraphRegistry(),
+      config: resolveConfig({ pluginConfig: { lookupTimeoutMs: 7777 } }),
+    });
     const res = await tool.execute("t", { ip: "1.2.3.4" });
+    expect(asnLookup).toHaveBeenCalledWith("1.2.3.4", 7777);
     expect(res.details.ok).toBe(true);
     if (res.details.ok) {
       expect(res.details.data.asn).toBe(64512);

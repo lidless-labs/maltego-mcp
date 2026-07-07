@@ -15,6 +15,7 @@ from pathlib import Path
 ENTROPY_THRESHOLD = 4.5
 MIN_TOKEN_LEN = 30
 TOKEN_RE = re.compile(r"[A-Za-z0-9+/=_-]{%d,}" % MIN_TOKEN_LEN)
+ABSOLUTE_PATH_RE = re.compile(r"^(?:/|[A-Za-z]:[\\/])")
 
 
 class EntropyError(RuntimeError):
@@ -31,9 +32,15 @@ def shannon_entropy(s: str) -> float:
     return -sum((c / n) * math.log2(c / n) for c in freqs.values())
 
 
+def is_path_like_token(token: str) -> bool:
+    return bool(ABSOLUTE_PATH_RE.match(token)) and ("/" in token or "\\" in token)
+
+
 def _scan_text(name: str, text: str) -> list[str]:
     hits: list[str] = []
     for token in TOKEN_RE.findall(text):
+        if is_path_like_token(token):
+            continue
         if shannon_entropy(token) >= ENTROPY_THRESHOLD:
             hits.append(f"{name}: {token[:8]}...{token[-4:]} (len={len(token)})")
     return hits

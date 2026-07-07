@@ -1,5 +1,6 @@
 import { lookup as whoisLookupFn } from "whois";
 import type { LookupOutcome } from "../types.js";
+import { withTimeout } from "./timeout.js";
 
 export interface WhoisData {
   domain: string;
@@ -24,30 +25,38 @@ function extractAll(line: RegExp, text: string): string[] {
   return out;
 }
 
-export function whoisLookup(domain: string): Promise<LookupOutcome<WhoisData>> {
-  return new Promise((resolvePromise) => {
+function rawWhoisLookup(domain: string): Promise<WhoisData> {
+  return new Promise((resolvePromise, reject) => {
     whoisLookupFn(domain, (err: Error | null, data: string) => {
       if (err) {
-        resolvePromise({
-          ok: false,
-          error: `whois lookup failed: ${err.message}`,
-          retriable: true
-        });
+        reject(err);
         return;
       }
       const text = data ?? "";
       resolvePromise({
-        ok: true,
-        data: {
-          domain,
-          raw: text,
-          registrar: extract(/^\s*Registrar:\s*(.+)$/im, text),
-          nameservers: extractAll(/^\s*Name Server:\s*(.+)$/gim, text).map((s) => s.toUpperCase()),
-          creationDate: extract(/^\s*Creation Date:\s*(.+)$/im, text),
-          updatedDate: extract(/^\s*Updated Date:\s*(.+)$/im, text),
-          registryExpiryDate: extract(/^\s*Registry Expiry Date:\s*(.+)$/im, text)
-        }
+        domain,
+        raw: text,
+        registrar: extract(/^\s*Registrar:\s*(.+)$/im, text),
+        nameservers: extractAll(/^\s*Name Server:\s*(.+)$/gim, text).map((s) => s.toUpperCase()),
+        creationDate: extract(/^\s*Creation Date:\s*(.+)$/im, text),
+        updatedDate: extract(/^\s*Updated Date:\s*(.+)$/im, text),
+        registryExpiryDate: extract(/^\s*Registry Expiry Date:\s*(.+)$/im, text)
       });
     });
   });
+}
+
+export async function whoisLookup(domain: string, timeoutMs: number = 30_000): Promise<LookupOutcome<WhoisData>> {
+  try {
+    return {
+      ok: true,
+      data: await withTimeout(rawWhoisLookup(domain), timeoutMs, `whois lookup for ${domain}`),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: `whois lookup failed: ${(err as Error).message}`,
+      retriable: true
+    };
+  }
 }

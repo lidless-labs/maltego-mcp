@@ -10,11 +10,16 @@ vi.mock("../../../src/lookups/dns.js", () => ({
 }));
 
 import { createDnsTool } from "../../../src/tools/dns.js";
+import { dnsLookup } from "../../../src/lookups/dns.js";
 
 describe("dns tool", () => {
   it("delegates to dnsLookup", async () => {
-    const tool = createDnsTool({ registry: new GraphRegistry(), config: resolveConfig({}) });
+    const tool = createDnsTool({
+      registry: new GraphRegistry(),
+      config: resolveConfig({ pluginConfig: { lookupTimeoutMs: 7777 } }),
+    });
     const res = await tool.execute("t", { domain: "a.com" });
+    expect(dnsLookup).toHaveBeenCalledWith("a.com", 7777);
     expect(res.details.ok).toBe(true);
     if (res.details.ok) {
       expect(res.details.data.a).toEqual(["1.2.3.4"]);

@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { UsageError, parseArgs, run, type CliDeps } from "../../cli.js";
 import type { MaltegoConfig } from "../../src/config.js";
 import { Graph } from "../../src/graph/graph.js";
 import type { LookupOutcome } from "../../src/types.js";
 
 const CONFIG: MaltegoConfig = { outputDir: "/tmp/maltego-graphs", lookupTimeoutMs: 30_000 };
+const packageJson = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+) as { bin?: Record<string, string> };
 
 function ok<T>(data: T): LookupOutcome<T> {
   return { ok: true, data };
@@ -22,6 +26,9 @@ function capture(over: Partial<CliDeps> = {}) {
     asn: vi.fn(),
     crtsh: vi.fn(),
     readGraph: vi.fn(),
+    writeGraph: vi.fn().mockResolvedValue(undefined),
+    readText: vi.fn(),
+    buildMtz: vi.fn().mockResolvedValue(undefined),
     serve: vi.fn().mockResolvedValue(undefined),
     ...over,
   };
@@ -29,12 +36,56 @@ function capture(over: Partial<CliDeps> = {}) {
 }
 
 describe("parseArgs", () => {
+  it("keeps the ctrl and compatibility package bins", () => {
+    expect(packageJson.bin).toMatchObject({
+      maltegoctrl: "dist/cli.js",
+      maltegoctl: "dist/cli.js",
+      "maltego-mcp": "dist/mcp-bin.js",
+    });
+  });
+
   it("routes lookup commands with their positional", () => {
     expect(parseArgs(["whois", "example.com"])).toEqual({ kind: "whois", json: false, domain: "example.com" });
+    expect(parseArgs(["lookup", "whois", "example.com"])).toEqual({ kind: "whois", json: false, domain: "example.com" });
     expect(parseArgs(["dns", "example.com", "--json"])).toEqual({ kind: "dns", json: true, domain: "example.com" });
     expect(parseArgs(["asn", "192.0.2.10"])).toEqual({ kind: "asn", json: false, ip: "192.0.2.10" });
     expect(parseArgs(["crtsh", "example.com"])).toEqual({ kind: "crtsh", json: false, domain: "example.com" });
     expect(parseArgs(["inspect", "graph.mtgx"])).toEqual({ kind: "inspect", json: false, path: "graph.mtgx" });
+    expect(parseArgs(["graph", "inspect", "graph.mtgx"])).toEqual({ kind: "inspect", json: false, path: "graph.mtgx" });
+  });
+
+  it("routes graph and mtz commands", () => {
+    expect(parseArgs([
+      "graph",
+      "build-ioc",
+      "--type",
+      "Domain",
+      "--value",
+      "evil.example",
+      "--output",
+      "ioc.mtgx",
+      "--note",
+      "triage",
+      "--overwrite",
+    ])).toEqual({
+      kind: "graph build-ioc",
+      json: false,
+      iocType: "Domain",
+      iocValue: "evil.example",
+      outputPath: "ioc.mtgx",
+      title: undefined,
+      notes: ["triage"],
+      overwrite: true,
+      maxItemsPerSection: undefined,
+    });
+    expect(parseArgs(["graph", "save", "--input", "graph.json", "--output", "graph.mtgx"])).toEqual({
+      kind: "graph save",
+      json: false,
+      inputPath: "graph.json",
+      outputPath: "graph.mtgx",
+      overwrite: false,
+    });
+    expect(parseArgs(["mtz", "build"])).toEqual({ kind: "mtz build", json: false });
   });
 
   it("routes help, version, and mcp", () => {
@@ -63,7 +114,7 @@ describe("run", () => {
     );
     const { out, deps } = capture({ whois });
     expect(await run(["whois", "example.com"], deps)).toBe(0);
-    expect(whois).toHaveBeenCalledWith("example.com");
+    expect(whois).toHaveBeenCalledWith("example.com", 30_000);
     const text = out.join("\n");
     expect(text).toContain("registrar: Example Registrar");
     expect(text).toContain("NS1.EXAMPLE.COM");
@@ -74,6 +125,7 @@ describe("run", () => {
     const dns = vi.fn().mockResolvedValue(ok(payload));
     const { out, deps } = capture({ dns });
     expect(await run(["dns", "example.com", "--json"], deps)).toBe(0);
+    expect(dns).toHaveBeenCalledWith("example.com", 30_000);
     expect(JSON.parse(out.join("\n"))).toEqual(payload);
   });
 
@@ -91,6 +143,7 @@ describe("run", () => {
     );
     const { out, deps } = capture({ asn });
     expect(await run(["asn", "192.0.2.10"], deps)).toBe(0);
+    expect(asn).toHaveBeenCalledWith("192.0.2.10", 30_000);
     const text = out.join("\n");
     expect(text).toContain("asn: AS64500");
     expect(text).toContain("org: EXAMPLE-AS");
@@ -110,6 +163,61 @@ describe("run", () => {
     expect(text).toContain("entities: 2");
     expect(text).toContain("links: 1");
     expect(text).toContain("A record");
+  });
+
+  it("builds an IOC graph and writes it inside outputDir", async () => {
+    const writeGraph = vi.fn().mockResolvedValue(undefined);
+    const { out, deps } = capture({ writeGraph });
+
+    expect(await run([
+      "graph",
+      "build-ioc",
+      "--type",
+      "Domain",
+      "--value",
+      "evil.example",
+      "--output",
+      "ioc.mtgx",
+      "--note",
+      "triage",
+    ], deps)).toBe(0);
+
+    expect(writeGraph).toHaveBeenCalledOnce();
+    expect(writeGraph.mock.calls[0][1]).toBe("/tmp/maltego-graphs/ioc.mtgx");
+    expect(out.join("\n")).toContain("entities:");
+  });
+
+  it("saves a graph snapshot JSON as .mtgx", async () => {
+    const readText = vi.fn().mockResolvedValue(JSON.stringify({
+      id: "g",
+      name: "snapshot",
+      entities: [
+        { id: "old-a", type: "Domain", value: "example.com", properties: {} },
+        { id: "old-b", type: "IPv4Address", value: "192.0.2.10", properties: {} },
+      ],
+      links: [
+        { id: "old-l", from: "old-a", to: "old-b", label: "A record", properties: {} },
+      ],
+    }));
+    const writeGraph = vi.fn().mockResolvedValue(undefined);
+    const { out, deps } = capture({ readText, writeGraph });
+
+    expect(await run(["graph", "save", "--input", "graph.json", "--output", "saved.mtgx"], deps)).toBe(0);
+
+    expect(readText).toHaveBeenCalledWith("graph.json");
+    expect(writeGraph).toHaveBeenCalledOnce();
+    expect(writeGraph.mock.calls[0][1]).toBe("/tmp/maltego-graphs/saved.mtgx");
+    expect(out.join("\n")).toContain("links: 1");
+  });
+
+  it("delegates mtz build to the transform packaging runner", async () => {
+    const buildMtz = vi.fn().mockResolvedValue(undefined);
+    const { out, deps } = capture({ buildMtz });
+
+    expect(await run(["mtz", "build"], deps)).toBe(0);
+
+    expect(buildMtz).toHaveBeenCalledOnce();
+    expect(out.join("\n")).toContain("maltego-mcp-transforms.mtz");
   });
 
   it("returns exit 1 and prints the error when a lookup fails", async () => {

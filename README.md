@@ -39,7 +39,7 @@ npm install -g maltego-mcp
 Or from source (required for Phase B transforms):
 
 ```bash
-git clone https://github.com/solomonneas/maltego-mcp.git
+git clone https://github.com/lidless-labs/maltego-mcp.git
 cd maltego-mcp
 npm install
 npm run build
@@ -72,7 +72,7 @@ Restart the client and the `maltego_*` tools appear. From a source checkout, poi
   "mcpServers": {
     "maltego": {
       "command": "node",
-      "args": ["/absolute/path/to/maltego-mcp/dist/mcp-server.js"]
+      "args": ["/absolute/path/to/maltego-mcp/dist/mcp-bin.js"]
     }
   }
 }
@@ -125,7 +125,7 @@ Both env vars are optional.
 | Variable | Default | Description |
 |---|---|---|
 | `MALTEGO_MCP_OUTPUT_DIR` | `~/MaltegoGraphs` | Default output directory for `.mtgx` files |
-| `MALTEGO_MCP_LOOKUP_TIMEOUT_MS` | `30000` | Per-lookup timeout in ms (currently applied to `crt.sh` only; `whois`, `dns`, `asn` use library defaults) |
+| `MALTEGO_MCP_LOOKUP_TIMEOUT_MS` | `30000` | Per-lookup timeout in ms for whois, DNS, ASN, and crt.sh |
 
 ### Claude Desktop
 
@@ -148,7 +148,7 @@ Or, when running from a source checkout instead of the global npm install:
   "mcpServers": {
     "maltego": {
       "command": "node",
-      "args": ["/absolute/path/to/maltego-mcp/dist/mcp-server.js"]
+      "args": ["/absolute/path/to/maltego-mcp/dist/mcp-bin.js"]
     }
   }
 }
@@ -165,7 +165,7 @@ claude mcp add maltego -- maltego-mcp
 Or from a source checkout:
 
 ```bash
-claude mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/mcp-server.js
+claude mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/mcp-bin.js
 ```
 
 Add `--scope user` to make it available from any directory instead of only the current project.
@@ -194,7 +194,7 @@ Or, when running from a source checkout:
 ```bash
 openclaw mcp set maltego '{
   "command": "node",
-  "args": ["/absolute/path/to/maltego-mcp/dist/mcp-server.js"]
+  "args": ["/absolute/path/to/maltego-mcp/dist/mcp-bin.js"]
 }'
 ```
 
@@ -216,7 +216,7 @@ Or, when running from a source checkout:
 mcp_servers:
   maltego:
     command: "node"
-    args: ["/absolute/path/to/maltego-mcp/dist/mcp-server.js"]
+    args: ["/absolute/path/to/maltego-mcp/dist/mcp-bin.js"]
 ```
 
 Then reload MCP from inside a Hermes session:
@@ -236,7 +236,7 @@ codex mcp add maltego -- maltego-mcp
 Or from a source checkout:
 
 ```bash
-codex mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/mcp-server.js
+codex mcp add maltego -- node /absolute/path/to/maltego-mcp/dist/mcp-bin.js
 ```
 
 Codex writes the entry to `~/.codex/config.toml` under `[mcp_servers.maltego]`. Verify with `codex mcp list`.
@@ -259,31 +259,33 @@ and [Basic data access notes](https://docs.maltego.com/en/support/solutions/arti
 
 ## CLI
 
-The same package ships a read-only control CLI, `maltegoctl`, for shells, cron, and CI. It shares the lookup and graph-reading tools with the MCP server and reads the same env config. It exposes only the read/inspect surface: the OSINT lookups (whois, DNS, ASN, crt.sh) and a `.mtgx` inspector. Graph authoring, saving, and the `.mtgx` expanders stay in the MCP/plugin surface, because their primary effect is writing a file to disk.
+The same package ships `maltegoctrl` for shells, cron, and CI. `maltegoctl` remains as a compatibility alias. It shares lookup, graph-writing, graph-reading, and transform packaging paths with the MCP server and reads the same env config.
 
 ```bash
-npx maltego-mcp@latest whois example.com
+npx -p maltego-mcp maltegoctrl lookup whois example.com
 # or, installed globally:
-maltegoctl whois example.com
-maltegoctl dns example.com
-maltegoctl asn 192.0.2.10
-maltegoctl crtsh example.com
-maltegoctl inspect graph.mtgx        # parse an existing .mtgx, list entities + links
-maltegoctl dns example.com --json    # raw JSON for piping
+maltegoctrl lookup whois example.com
+maltegoctrl lookup dns example.com --json
+maltegoctrl lookup asn 192.0.2.10
+maltegoctrl lookup crtsh example.com
+maltegoctrl graph inspect graph.mtgx
+maltegoctrl graph build-ioc --type Domain --value evil.example --output evil.mtgx --note "triage"
+maltegoctrl graph save --input graph-snapshot.json --output graph.mtgx
+maltegoctrl mtz build
 ```
 
-Run `maltegoctl help` for the full command and flag list. `--json` emits raw JSON instead of the concise human-readable summary. `inspect` reads from inside `MALTEGO_MCP_OUTPUT_DIR` only and never writes; the lookup tools make outbound queries but mutate nothing. Exit codes: `0` success, `1` runtime error (a lookup failed, the host was unreachable, or the `.mtgx` could not be read), `2` usage error (unknown command/flag or a missing argument).
+Run `maltegoctrl help` for the full command and flag list. `--json` emits raw JSON instead of the concise human-readable summary. Graph paths are confined to `MALTEGO_MCP_OUTPUT_DIR` with realpath checks so symlinks inside the output directory cannot point writes outside it. Exit codes: `0` success, `1` runtime error (a lookup failed, the host was unreachable, or the `.mtgx` could not be read or written), `2` usage error (unknown command/flag or a missing argument).
 
 Environment:
 
 | Variable | Default | Description |
 |---|---|---|
-| `MALTEGO_MCP_OUTPUT_DIR` | `~/MaltegoGraphs` | Base directory `inspect` paths are confined to |
-| `MALTEGO_MCP_LOOKUP_TIMEOUT_MS` | `30000` | Per-lookup timeout in ms (applied to `crtsh` only) |
+| `MALTEGO_MCP_OUTPUT_DIR` | `~/MaltegoGraphs` | Base directory graph paths are confined to |
+| `MALTEGO_MCP_LOOKUP_TIMEOUT_MS` | `30000` | Per-lookup timeout in ms for whois, DNS, ASN, and crt.sh |
 
 ### Starting the MCP server
 
-`maltegoctl mcp` (or the back-compat `maltego-mcp` bin) starts the stdio MCP server. If a launcher referenced the file path `dist/mcp-server.js` directly, it keeps working; new launchers can point at `dist/mcp-bin.js` (or `dist/cli.js mcp`). Launchers that use the `maltego-mcp` bin name need no change.
+`maltegoctrl mcp` (or the back-compat `maltego-mcp` bin) starts the stdio MCP server. If a launcher referenced the file path `dist/mcp-server.js` directly, it keeps working; new launchers can point at `dist/mcp-bin.js` (or `dist/cli.js mcp`). Launchers that use the `maltego-mcp` bin name need no change.
 
 ## Basic-friendly demo graph
 

@@ -30,6 +30,13 @@ def test_high_entropy_string_blocks_build(tmp_path: Path) -> None:
         scan_zip(z)
 
 
+def test_absolute_paths_do_not_trip_entropy_scan(tmp_path: Path) -> None:
+    z = tmp_path / "path.mtz"
+    path = "/home/clawdbot/Documents/Codex/2026-07-06/go-over-all-of-https-github/work/repos/maltego-mcp/transforms/"
+    _make_zip(z, {"TransformRepositories/Local/x.transformsettings": f"<x path='{path}'/>"})
+    scan_zip(z)
+
+
 def test_force_env_var_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     z = tmp_path / "leaky.mtz"
     secret = "AKIAIOSFODNN7EXAMPLE0K1q3vJALrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"

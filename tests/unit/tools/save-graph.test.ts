@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { tmpdir } from "node:os";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { GraphRegistry } from "../../../src/server/registry.js";
 import { createSaveGraphTool } from "../../../src/tools/save-graph.js";
@@ -34,5 +34,19 @@ describe("save-graph tool", () => {
     g.addEntity({ type: "Domain", value: "a.com", properties: {} });
     const outside = resolve(tmp, "..", "escapes.mtgx");
     await expect(tool.execute("t", { graphId: g.id, path: outside })).rejects.toThrow(/outside the configured output directory/);
+  });
+
+  it("refuses symlink escapes inside outputDir", async () => {
+    const tool = createSaveGraphTool({ registry, config: resolveConfig({ pluginConfig: { outputDir: tmp } }) });
+    const g = registry.create("symlink-escape");
+    g.addEntity({ type: "Domain", value: "a.com", properties: {} });
+    const outside = await mkdtemp(join(tmpdir(), "maltego-outside-"));
+    const link = join(tmp, "link");
+    await mkdir(outside, { recursive: true });
+    await symlink(outside, link, "dir");
+
+    await expect(
+      tool.execute("t", { graphId: g.id, path: join(link, "escape.mtgx") }),
+    ).rejects.toThrow(/outside the configured output directory/);
   });
 });

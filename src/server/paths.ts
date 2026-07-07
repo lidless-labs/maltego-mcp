@@ -1,5 +1,6 @@
 import { ToolValidationError } from "./errors.js";
-import { resolve, isAbsolute, relative } from "node:path";
+import { existsSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 
 export function resolveHomeTilde(path: string): string {
   if (!path.startsWith("~")) return path;
@@ -16,11 +17,28 @@ export function rejectNullBytes(path: string): void {
   }
 }
 
+function realpathExistingPrefix(absolutePath: string): string {
+  let cursor = absolutePath;
+  const missingParts: string[] = [];
+
+  while (!existsSync(cursor)) {
+    const parent = dirname(cursor);
+    if (parent === cursor) {
+      throw new ToolValidationError(`no existing parent directory for path: ${absolutePath}`);
+    }
+    missingParts.unshift(basename(cursor));
+    cursor = parent;
+  }
+
+  const realPrefix = realpathSync.native(cursor);
+  return missingParts.length > 0 ? resolve(realPrefix, ...missingParts) : realPrefix;
+}
+
 /**
  * Confine a caller-supplied path to the configured output directory.
  * - Relative paths are resolved under outputDir.
  * - Absolute paths (including after ~ expansion) must be inside outputDir.
- * - Returns the canonicalized absolute path.
+ * - Returns the canonicalized absolute path after resolving existing symlinks.
  * Throws ToolValidationError if the resolved path escapes outputDir.
  */
 export function confineToOutputDir(userPath: string, outputDir: string): string {
@@ -29,13 +47,14 @@ export function confineToOutputDir(userPath: string, outputDir: string): string 
   const absoluteTarget = isAbsolute(expanded)
     ? resolve(expanded)
     : resolve(outputDir, expanded);
-  const absoluteBase = resolve(outputDir);
-  const rel = relative(absoluteBase, absoluteTarget);
+  const absoluteBase = realpathExistingPrefix(resolve(outputDir));
+  const realTarget = realpathExistingPrefix(absoluteTarget);
+  const rel = relative(absoluteBase, realTarget);
   if (rel.startsWith("..") || isAbsolute(rel)) {
     throw new ToolValidationError(
       `path '${userPath}' resolves outside the configured output directory (${absoluteBase}); ` +
         `set MALTEGO_MCP_OUTPUT_DIR to a parent of your target or use a path under the current output dir`
     );
   }
-  return absoluteTarget;
+  return realTarget;
 }

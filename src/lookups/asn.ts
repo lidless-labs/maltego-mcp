@@ -1,5 +1,6 @@
 import { resolveTxt } from "node:dns/promises";
 import type { LookupOutcome } from "../types.js";
+import { withTimeout } from "./timeout.js";
 
 export interface AsnData {
   ip: string;
@@ -15,11 +16,15 @@ function reverseIPv4(ip: string): string {
   return ip.split(".").reverse().join(".");
 }
 
-export async function asnLookup(ip: string): Promise<LookupOutcome<AsnData>> {
+export async function asnLookup(ip: string, timeoutMs: number = 30_000): Promise<LookupOutcome<AsnData>> {
   try {
     const reversed = reverseIPv4(ip);
     const originHost = `${reversed}.origin.asn.cymru.com`;
-    const originRecords = await resolveTxt(originHost);
+    const originRecords = await withTimeout(
+      resolveTxt(originHost),
+      timeoutMs,
+      `ASN origin lookup for ${ip}`,
+    );
     const originText = originRecords[0]?.join("") ?? "";
     const [asnStr, prefix, country, registry, allocated] = originText
       .split("|")
@@ -28,7 +33,11 @@ export async function asnLookup(ip: string): Promise<LookupOutcome<AsnData>> {
     let organization: string | undefined;
     try {
       const asHost = `AS${asn}.asn.cymru.com`;
-      const asRecords = await resolveTxt(asHost);
+      const asRecords = await withTimeout(
+        resolveTxt(asHost),
+        timeoutMs,
+        `ASN organization lookup for AS${asn}`,
+      );
       const asText = asRecords[0]?.join("") ?? "";
       const parts = asText.split("|").map((s) => s.trim());
       organization = parts[4];

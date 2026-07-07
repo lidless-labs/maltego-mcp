@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/mcp-server.js",
   "bin": {
+    "maltegoctrl": "dist/cli.js",
     "maltego-mcp": "dist/mcp-bin.js",
     "maltegoctl": "dist/cli.js"
   },
@@ -14,7 +15,9 @@
     "cli.ts",
     "mcp-bin.ts",
     "mcp-server.ts",
+    "scripts",
     "src",
+    "transforms",
     "openclaw.plugin.json",
     "README.md",
     "CHANGELOG.md",
@@ -38,11 +41,11 @@
   "author": "Solomon Neas <srneas@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/solomonneas/maltego-mcp.git"
+    "url": "git+https://github.com/lidless-labs/maltego-mcp.git"
   },
-  "homepage": "https://github.com/solomonneas/maltego-mcp#readme",
+  "homepage": "https://github.com/lidless-labs/maltego-mcp#readme",
   "bugs": {
-    "url": "https://github.com/solomonneas/maltego-mcp/issues"
+    "url": "https://github.com/lidless-labs/maltego-mcp/issues"
   },
   "keywords": [
     "mcp",
@@ -56,7 +59,7 @@
     "@sinclair/typebox": "^0.34.49",
     "fast-xml-parser": "^5.7.3",
     "jszip": "^3.10.1",
-    "undici": "^6.26.0",
+    "undici": "^6.27.0",
     "whois": "^2.14.0",
     "zod": "^4.4.2"
   },
@@ -81,5 +84,10 @@
       "openclawVersion": "2026.4.27",
       "pluginSdkVersion": "2026.4.27"
     }
-  }
+  },
+  "overrides": {
+    "esbuild": "0.28.1",
+    "hono": "4.12.27"
+  },
+  "packageManager": "npm@10.9.7"
 }

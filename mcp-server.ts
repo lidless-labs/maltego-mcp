@@ -11,6 +11,15 @@ import { ALL_TOOL_FACTORIES, MCP_INPUT_SHAPES } from "./src/tools/index.js";
 import { toToolResponse } from "./src/server/errors.js";
 
 const VERSION = "0.3.0";
+let processErrorHandlersInstalled = false;
+
+function installProcessErrorHandlers(): void {
+  if (processErrorHandlersInstalled) return;
+  processErrorHandlersInstalled = true;
+  process.on("unhandledRejection", (reason) => {
+    console.error("maltego-mcp unhandled rejection:", reason);
+  });
+}
 
 /**
  * Start the maltego-mcp stdio server. Extracted from the former top-level
@@ -20,6 +29,7 @@ const VERSION = "0.3.0";
  * ready line.
  */
 export async function serve(): Promise<void> {
+  installProcessErrorHandlers();
   const config = resolveConfig({ env: process.env });
   const registry = new GraphRegistry();
   const deps = { registry, config };

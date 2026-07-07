@@ -15,7 +15,7 @@ export const mcpInputShape = { domain: z.string() };
 
 export interface ToolDeps { registry: GraphRegistry; config: MaltegoConfig; }
 
-export function createDnsTool(_deps: ToolDeps) {
+export function createDnsTool(deps: ToolDeps) {
   return {
     name: "maltego_dns",
     label: "maltego: dns",
@@ -23,7 +23,7 @@ export function createDnsTool(_deps: ToolDeps) {
     parameters: Schema,
     execute: async (_id: string, raw: Record<string, unknown>) => {
       const input = raw as Input;
-      return jsonToolResult(await dnsLookup(input.domain));
+      return jsonToolResult(await dnsLookup(input.domain, deps.config.lookupTimeoutMs));
     },
   };
 }

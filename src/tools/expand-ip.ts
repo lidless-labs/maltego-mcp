@@ -51,7 +51,7 @@ export function createExpandIpTool(deps: ToolDeps) {
       const g = deps.registry.create(`expand-ip-${input.ip}`);
       const ipE = g.addEntity({ type: "IPv4Address", value: input.ip, properties: {} });
 
-      const asn = await asnLookup(input.ip);
+      const asn = await asnLookup(input.ip, deps.config.lookupTimeoutMs);
       if (asn.ok) {
         const asE = g.ensureEntity({
           type: "AS",
