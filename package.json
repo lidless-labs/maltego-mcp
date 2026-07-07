@@ -1,6 +1,6 @@
 {
   "name": "maltego-mcp",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "MCP server for authoring Maltego graph files and running primitive OSINT lookups.",
   "type": "module",
   "main": "dist/mcp-server.js",

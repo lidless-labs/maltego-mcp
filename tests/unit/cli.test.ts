@@ -38,9 +38,9 @@ function capture(over: Partial<CliDeps> = {}) {
 describe("parseArgs", () => {
   it("keeps the ctrl and compatibility package bins", () => {
     expect(packageJson.bin).toMatchObject({
-      maltegoctrl: "dist/cli.js",
-      maltegoctl: "dist/cli.js",
-      "maltego-mcp": "dist/mcp-bin.js",
+      maltegoctrl: "./dist/cli.js",
+      maltegoctl: "./dist/cli.js",
+      "maltego-mcp": "./dist/mcp-bin.js",
     });
   });
 
