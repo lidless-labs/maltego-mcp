@@ -4,5 +4,5 @@ contact_links:
     url: https://lidless.dev/maltego-mcp
     about: Overview, positioning, and how maltego-mcp fits the rest of the security MCP fleet.
   - name: Security report
-    url: https://github.com/solomonneas/maltego-mcp/security/policy
+    url: https://github.com/lidless-labs/maltego-mcp/security/policy
     about: Do not file security issues publicly. See SECURITY.md for the private reporting process.

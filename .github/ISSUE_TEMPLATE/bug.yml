@@ -17,7 +17,7 @@ body:
     attributes:
       label: maltego-mcp version
       description: npm version or the commit you built from.
-      placeholder: 0.3.0 (or commit sha)
+      placeholder: 0.4.3 (or commit sha)
     validations:
       required: true
   - type: input

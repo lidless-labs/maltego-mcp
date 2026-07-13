@@ -39,7 +39,7 @@ npm install -g maltego-mcp
 Or from source (required for Phase B transforms):
 
 ```bash
-git clone https://github.com/solomonneas/maltego-mcp.git
+git clone https://github.com/lidless-labs/maltego-mcp.git
 cd maltego-mcp
 npm install
 npm run build
@@ -78,7 +78,7 @@ Restart the client and the `maltego_*` tools appear. From a source checkout, poi
 }
 ```
 
-> Status: the npm package is published (latest tag `v0.3.0`); `0.4.0` is in development and ships from a source build. Phase B transforms require a source checkout. See [Install](#install) for all client recipes.
+> Status: v0.4.3 is published on npm and GitHub. Phase B transforms require a source checkout. See [Install](#install) for all client recipes.
 
 ## Tools (Phase A)
 

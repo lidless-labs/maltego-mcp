@@ -38,11 +38,11 @@
   "author": "Solomon Neas <srneas@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/solomonneas/maltego-mcp.git"
+    "url": "git+https://github.com/lidless-labs/maltego-mcp.git"
   },
-  "homepage": "https://github.com/solomonneas/maltego-mcp#readme",
+  "homepage": "https://github.com/lidless-labs/maltego-mcp#readme",
   "bugs": {
-    "url": "https://github.com/solomonneas/maltego-mcp/issues"
+    "url": "https://github.com/lidless-labs/maltego-mcp/issues"
   },
   "keywords": [
     "mcp",

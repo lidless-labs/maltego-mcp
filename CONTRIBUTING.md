@@ -28,7 +28,7 @@ maltego-mcp is an MCP server for authoring Maltego graph files and running primi
 Phase A (TypeScript MCP server):
 
 ```bash
-git clone https://github.com/solomonneas/maltego-mcp.git
+git clone https://github.com/lidless-labs/maltego-mcp.git
 cd maltego-mcp
 npm install
 npm run build
