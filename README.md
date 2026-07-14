@@ -2,6 +2,9 @@
   <img src="docs/assets/maltego-mcp-banner.jpg" alt="maltego-mcp banner" width="900">
 </p>
 
+<p align="center">
+  <a href="https://lidless.dev"><img src="docs/assets/marks/maltego-mcp-circle.png" width="48" alt="Lidless Labs"></a>
+</p>
 <h1 align="center">maltego-mcp</h1>
 
 <p align="center"><strong>An MCP server that lets an LLM author Maltego graph files and run primitive OSINT lookups.</strong></p>
@@ -402,3 +405,11 @@ Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
 ## License
 
 [MIT](LICENSE)
+
+---
+
+<p align="center"><a href="https://lidless.dev">Part of <strong>Lidless Labs</strong></a> &middot; the eye does not close</p>
+
+<p align="center"><sub><strong>Threat Intelligence & OSINT:</strong> <a href="https://github.com/lidless-labs/cyberbrief">cyberbrief</a> &middot; <a href="https://github.com/lidless-labs/intel-workbench">intel-workbench</a> &middot; <a href="https://github.com/lidless-labs/vervet">vervet</a></sub></p>
+
+<p align="center"><sub><a href="https://lidless.dev">All tools</a> &middot; <a href="https://github.com/lidless-labs">Lidless Labs on GitHub</a></sub></p>
