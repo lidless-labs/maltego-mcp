@@ -10,11 +10,14 @@ vi.mock("../../../src/lookups/whois.js", () => ({
 }));
 
 import { createWhoisTool } from "../../../src/tools/whois.js";
+import { whoisLookup } from "../../../src/lookups/whois.js";
 
 describe("whois tool", () => {
   it("delegates to whoisLookup", async () => {
-    const tool = createWhoisTool({ registry: new GraphRegistry(), config: resolveConfig({}) });
+    const config = resolveConfig({ pluginConfig: { lookupTimeoutMs: 7777 } });
+    const tool = createWhoisTool({ registry: new GraphRegistry(), config });
     const res = await tool.execute("t", { domain: "a.com" });
+    expect(vi.mocked(whoisLookup)).toHaveBeenCalledWith("a.com", 7777);
     expect(res.details).toMatchObject({ ok: true, data: { registrar: "Test, Inc." } });
   });
 });

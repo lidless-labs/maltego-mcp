@@ -48,7 +48,7 @@ Global options:
 
 Environment:
   MALTEGO_MCP_OUTPUT_DIR          Base dir .mtgx paths are confined to (default ~/MaltegoGraphs)
-  MALTEGO_MCP_LOOKUP_TIMEOUT_MS   Per-lookup timeout in ms, crt.sh only (default 30000)`;
+  MALTEGO_MCP_LOOKUP_TIMEOUT_MS   Per-lookup timeout in ms (default 30000)`;
 
 function takeFlag(args: string[], name: string): boolean {
   const i = args.indexOf(name);
@@ -205,9 +205,9 @@ export interface CliDeps {
   out: (s: string) => void;
   err: (s: string) => void;
   config: MaltegoConfig;
-  whois: (domain: string) => Promise<LookupOutcome<import("./src/lookups/whois.js").WhoisData>>;
-  dns: (domain: string) => Promise<LookupOutcome<import("./src/lookups/dns.js").DnsData>>;
-  asn: (ip: string) => Promise<LookupOutcome<import("./src/lookups/asn.js").AsnData>>;
+  whois: (domain: string, timeoutMs: number) => Promise<LookupOutcome<import("./src/lookups/whois.js").WhoisData>>;
+  dns: (domain: string, timeoutMs: number) => Promise<LookupOutcome<import("./src/lookups/dns.js").DnsData>>;
+  asn: (ip: string, timeoutMs: number) => Promise<LookupOutcome<import("./src/lookups/asn.js").AsnData>>;
   crtsh: (domain: string, timeoutMs: number) => Promise<LookupOutcome<import("./src/lookups/crtsh.js").CrtshData>>;
   readGraph: (path: string) => Promise<Graph>;
   serve: () => Promise<void>;
@@ -244,17 +244,17 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
   try {
     switch (parsed.kind) {
       case "whois": {
-        const d = unwrap(await deps.whois(parsed.domain));
+        const d = unwrap(await deps.whois(parsed.domain, deps.config.lookupTimeoutMs));
         emit(d, () => renderWhois(d), parsed.json);
         return 0;
       }
       case "dns": {
-        const d = unwrap(await deps.dns(parsed.domain));
+        const d = unwrap(await deps.dns(parsed.domain, deps.config.lookupTimeoutMs));
         emit(d, () => renderDns(d), parsed.json);
         return 0;
       }
       case "asn": {
-        const d = unwrap(await deps.asn(parsed.ip));
+        const d = unwrap(await deps.asn(parsed.ip, deps.config.lookupTimeoutMs));
         emit(d, () => renderAsn(d), parsed.json);
         return 0;
       }

@@ -15,7 +15,7 @@ export const mcpInputShape = { ip: z.string() };
 
 export interface ToolDeps { registry: GraphRegistry; config: MaltegoConfig; }
 
-export function createAsnTool(_deps: ToolDeps) {
+export function createAsnTool(deps: ToolDeps) {
   return {
     name: "maltego_asn",
     label: "maltego: asn",
@@ -23,7 +23,7 @@ export function createAsnTool(_deps: ToolDeps) {
     parameters: Schema,
     execute: async (_id: string, raw: Record<string, unknown>) => {
       const input = raw as Input;
-      return jsonToolResult(await asnLookup(input.ip));
+      return jsonToolResult(await asnLookup(input.ip, deps.config.lookupTimeoutMs));
     },
   };
 }

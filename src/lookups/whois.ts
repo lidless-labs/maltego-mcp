@@ -1,5 +1,6 @@
 import { lookup as whoisLookupFn } from "whois";
 import type { LookupOutcome } from "../types.js";
+import { LookupTimeoutError, withLookupTimeout } from "./timeout.js";
 
 export interface WhoisData {
   domain: string;
@@ -24,8 +25,11 @@ function extractAll(line: RegExp, text: string): string[] {
   return out;
 }
 
-export function whoisLookup(domain: string): Promise<LookupOutcome<WhoisData>> {
-  return new Promise((resolvePromise) => {
+export async function whoisLookup(
+  domain: string,
+  timeoutMs: number = 30_000,
+): Promise<LookupOutcome<WhoisData>> {
+  const operation = new Promise<LookupOutcome<WhoisData>>((resolvePromise) => {
     whoisLookupFn(domain, (err: Error | null, data: string) => {
       if (err) {
         resolvePromise({
@@ -50,4 +54,13 @@ export function whoisLookup(domain: string): Promise<LookupOutcome<WhoisData>> {
       });
     });
   });
+
+  try {
+    return await withLookupTimeout(operation, timeoutMs, "whois lookup");
+  } catch (err) {
+    if (err instanceof LookupTimeoutError) {
+      return { ok: false, error: err.message, retriable: true, retryAfterMs: timeoutMs };
+    }
+    throw err;
+  }
 }

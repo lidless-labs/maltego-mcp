@@ -15,7 +15,7 @@ export const mcpInputShape = { domain: z.string() };
 
 export interface ToolDeps { registry: GraphRegistry; config: MaltegoConfig; }
 
-export function createWhoisTool(_deps: ToolDeps) {
+export function createWhoisTool(deps: ToolDeps) {
   return {
     name: "maltego_whois",
     label: "maltego: whois",
@@ -23,7 +23,7 @@ export function createWhoisTool(_deps: ToolDeps) {
     parameters: Schema,
     execute: async (_id: string, raw: Record<string, unknown>) => {
       const input = raw as Input;
-      return jsonToolResult(await whoisLookup(input.domain));
+      return jsonToolResult(await whoisLookup(input.domain, deps.config.lookupTimeoutMs));
     },
   };
 }
