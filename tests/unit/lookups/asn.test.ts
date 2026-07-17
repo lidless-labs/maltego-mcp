@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { resolveTxt } from "node:dns/promises";
 import { asnLookup } from "../../../src/lookups/asn.js";
 
 vi.mock("node:dns/promises", () => ({
@@ -24,5 +25,18 @@ describe("asnLookup", () => {
       expect(result.data.registry).toBe("arin");
       expect(result.data.organization).toMatch(/GOOGLE/);
     }
+  });
+
+  it("returns a retriable timeout when Team Cymru DNS hangs", async () => {
+    vi.mocked(resolveTxt).mockImplementationOnce(() => new Promise(() => undefined));
+
+    const result = await asnLookup("1.2.3.4", 1);
+
+    expect(result).toEqual({
+      ok: false,
+      error: "asn lookup timed out after 1ms",
+      retriable: true,
+      retryAfterMs: 1,
+    });
   });
 });

@@ -16,6 +16,9 @@ vi.mock("../../../src/lookups/asn.js", () => ({
 }));
 
 import { createExpandDomainTool } from "../../../src/tools/expand-domain.js";
+import { whoisLookup } from "../../../src/lookups/whois.js";
+import { dnsLookup } from "../../../src/lookups/dns.js";
+import { asnLookup } from "../../../src/lookups/asn.js";
 
 describe("expand-domain tool", () => {
   let tmp: string;
@@ -25,10 +28,13 @@ describe("expand-domain tool", () => {
   it("builds a graph with whois + DNS + ASN", async () => {
     const tool = createExpandDomainTool({
       registry: new GraphRegistry(),
-      config: resolveConfig({ pluginConfig: { outputDir: tmp } }),
+      config: resolveConfig({ pluginConfig: { outputDir: tmp, lookupTimeoutMs: 7777 } }),
     });
     const res = await tool.execute("t", { domain: "a.com", outputPath: join(tmp, "d.mtgx") });
     expect(res.details.entityCount).toBeGreaterThan(2);
     expect(res.details.linkCount).toBeGreaterThan(0);
+    expect(vi.mocked(whoisLookup)).toHaveBeenCalledWith("a.com", 7777);
+    expect(vi.mocked(dnsLookup)).toHaveBeenCalledWith("a.com", 7777);
+    expect(vi.mocked(asnLookup)).toHaveBeenCalledWith("1.2.3.4", 7777);
   });
 });

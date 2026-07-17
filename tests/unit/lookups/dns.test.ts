@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { resolve4 } from "node:dns/promises";
 import { dnsLookup } from "../../../src/lookups/dns.js";
 
 vi.mock("node:dns/promises", () => ({
@@ -21,5 +22,18 @@ describe("dnsLookup", () => {
       expect(result.data.ns).toContain("a.iana-servers.net");
       expect(result.data.txt).toContain("v=spf1 -all");
     }
+  });
+
+  it("returns a retriable timeout when a DNS query hangs", async () => {
+    vi.mocked(resolve4).mockImplementationOnce(() => new Promise(() => undefined));
+
+    const result = await dnsLookup("example.com", 1);
+
+    expect(result).toEqual({
+      ok: false,
+      error: "dns lookup timed out after 1ms",
+      retriable: true,
+      retryAfterMs: 1,
+    });
   });
 });

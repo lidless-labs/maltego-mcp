@@ -3,6 +3,7 @@ import { UsageError, parseArgs, run, type CliDeps } from "../../cli.js";
 import type { MaltegoConfig } from "../../src/config.js";
 import { Graph } from "../../src/graph/graph.js";
 import type { LookupOutcome } from "../../src/types.js";
+import { resolve } from "node:path";
 
 const CONFIG: MaltegoConfig = { outputDir: "/tmp/maltego-graphs", lookupTimeoutMs: 30_000 };
 
@@ -63,7 +64,7 @@ describe("run", () => {
     );
     const { out, deps } = capture({ whois });
     expect(await run(["whois", "example.com"], deps)).toBe(0);
-    expect(whois).toHaveBeenCalledWith("example.com");
+    expect(whois).toHaveBeenCalledWith("example.com", 30_000);
     const text = out.join("\n");
     expect(text).toContain("registrar: Example Registrar");
     expect(text).toContain("NS1.EXAMPLE.COM");
@@ -74,6 +75,7 @@ describe("run", () => {
     const dns = vi.fn().mockResolvedValue(ok(payload));
     const { out, deps } = capture({ dns });
     expect(await run(["dns", "example.com", "--json"], deps)).toBe(0);
+    expect(dns).toHaveBeenCalledWith("example.com", 30_000);
     expect(JSON.parse(out.join("\n"))).toEqual(payload);
   });
 
@@ -91,6 +93,7 @@ describe("run", () => {
     );
     const { out, deps } = capture({ asn });
     expect(await run(["asn", "192.0.2.10"], deps)).toBe(0);
+    expect(asn).toHaveBeenCalledWith("192.0.2.10", 30_000);
     const text = out.join("\n");
     expect(text).toContain("asn: AS64500");
     expect(text).toContain("org: EXAMPLE-AS");
@@ -105,7 +108,7 @@ describe("run", () => {
     const { out, deps } = capture({ readGraph });
     expect(await run(["inspect", "demo.mtgx"], deps)).toBe(0);
     // path is confined to outputDir before reaching readGraph
-    expect(readGraph).toHaveBeenCalledWith("/tmp/maltego-graphs/demo.mtgx");
+    expect(readGraph).toHaveBeenCalledWith(resolve(CONFIG.outputDir, "demo.mtgx"));
     const text = out.join("\n");
     expect(text).toContain("entities: 2");
     expect(text).toContain("links: 1");

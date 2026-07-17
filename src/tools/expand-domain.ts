@@ -53,7 +53,10 @@ export function createExpandDomainTool(deps: ToolDeps) {
       const g = deps.registry.create(`expand-domain-${input.domain}`);
       const dE = g.addEntity({ type: "Domain", value: input.domain, properties: {} });
 
-      const [whois, dns] = await Promise.all([whoisLookup(input.domain), dnsLookup(input.domain)]);
+      const [whois, dns] = await Promise.all([
+        whoisLookup(input.domain, deps.config.lookupTimeoutMs),
+        dnsLookup(input.domain, deps.config.lookupTimeoutMs),
+      ]);
 
       if (whois.ok) {
         const w = whois.data;
@@ -75,7 +78,7 @@ export function createExpandDomainTool(deps: ToolDeps) {
         for (const ip of dns.data.a) {
           const ipE = g.ensureEntity({ type: "IPv4Address", value: ip, properties: {} });
           g.addLink({ from: dE.id, to: ipE.id, label: "A record", properties: {} });
-          const asn = await asnLookup(ip);
+          const asn = await asnLookup(ip, deps.config.lookupTimeoutMs);
           if (asn.ok) {
             const asE = g.ensureEntity({
               type: "AS",
