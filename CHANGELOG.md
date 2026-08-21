@@ -10,6 +10,10 @@
 
 - README overhaul: differentiator on the first screen, a Website link, a keyword-rich "What it does" section, a copy-paste MCP quickstart, a verified 13-tool reference, "Why not" comparisons, and a "What maltego-mcp is not" section.
 
+### Fixed
+
+- Emit Maltego-compatible `.mtgx` GraphML with native entity/link keys and renderers, standard entity value properties, and manual-link metadata; keep the reader compatible with graphs written by earlier releases.
+
 ## 0.4.0 - 2026-05-31
 
 ### Added
