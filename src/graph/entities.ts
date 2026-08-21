@@ -15,6 +15,21 @@ export const ENTITY_TYPES = [
 
 export type MaltegoEntityType = (typeof ENTITY_TYPES)[number];
 
+const VALUE_PROPERTY_BY_ENTITY_TYPE: Record<MaltegoEntityType, string> = {
+  "maltego.IPv4Address": "ipv4-address",
+  "maltego.IPv6Address": "ipv6-address",
+  "maltego.Domain": "fqdn",
+  "maltego.URL": "url",
+  "maltego.Hash": "properties.hash",
+  "maltego.EmailAddress": "email",
+  "maltego.Netblock": "ipv4-range",
+  "maltego.AS": "as.number",
+  "maltego.Website": "fqdn",
+  "maltego.Company": "title",
+  "maltego.Person": "person.fullname",
+  "maltego.Phrase": "text"
+};
+
 export type ValidateResult =
   | { ok: true; normalized?: string }
   | { ok: false; suggestions: string[]; message: string };
@@ -47,4 +62,9 @@ export function normalizeEntityType(type: string): string {
     throw new Error(result.message);
   }
   return result.normalized ?? type;
+}
+
+export function valuePropertyForEntityType(type: string): string {
+  const normalized = normalizeEntityType(type) as MaltegoEntityType;
+  return VALUE_PROPERTY_BY_ENTITY_TYPE[normalized];
 }
