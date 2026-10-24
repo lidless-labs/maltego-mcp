@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- Start exactly one stdio server from the bundled `maltego-mcp` and `maltegoctl mcp` entrypoints, preserving graph handles across requests; report the package version in the MCP handshake and ready message.
 - Emit Maltego-compatible `.mtgx` GraphML with native entity/link keys and renderers, standard entity value properties, and manual-link metadata; keep the reader compatible with graphs written by earlier releases.
 
 ## 0.4.0 - 2026-05-31

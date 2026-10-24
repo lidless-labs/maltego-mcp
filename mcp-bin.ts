@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { serve } from "./mcp-server.js";
+import { serve } from "./src/server/stdio.js";
 
 serve().catch((error: unknown) => {
   const msg = error instanceof Error ? error.message : String(error);
