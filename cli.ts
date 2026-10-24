@@ -302,7 +302,7 @@ if (isEntrypoint) {
     crtsh: crtshLookup,
     readGraph: (path) => readMtgxFile(path, "g-inspect"),
     serve: async () => {
-      const { serve } = await import("./mcp-server.js");
+      const { serve } = await import("./src/server/stdio.js");
       await serve();
     },
   })
