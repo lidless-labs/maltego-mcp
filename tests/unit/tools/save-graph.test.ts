@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { tmpdir } from "node:os";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile, symlink, mkdir, rename } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import JSZip from "jszip";
+import { readMtgxFile } from "../../../src/graph/reader.js";
 import { GraphRegistry } from "../../../src/server/registry.js";
 import { createSaveGraphTool } from "../../../src/tools/save-graph.js";
 import { resolveConfig } from "../../../src/config.js";
@@ -13,7 +15,7 @@ describe("save-graph tool", () => {
     registry = new GraphRegistry();
     tmp = await mkdtemp(join(tmpdir(), "maltego-mcp-test-"));
   });
-  afterEach(async () => { await rm(tmp, { recursive: true, force: true }); });
+  afterEach(async () => { vi.restoreAllMocks(); await rm(tmp, { recursive: true, force: true }); });
 
   it("writes a .mtgx and refuses overwrite", async () => {
     const tool = createSaveGraphTool({ registry, config: resolveConfig({ pluginConfig: { outputDir: tmp } }) });
@@ -35,4 +37,53 @@ describe("save-graph tool", () => {
     const outside = resolve(tmp, "..", "escapes.mtgx");
     await expect(tool.execute("t", { graphId: g.id, path: outside })).rejects.toThrow(/outside the configured output directory/);
   });
+  it("allows exactly one concurrent no-overwrite save", async () => {
+    const tool = createSaveGraphTool({ registry, config: resolveConfig({ pluginConfig: { outputDir: tmp } }) });
+    const g = registry.create("race");
+    g.addEntity({ type: "Domain", value: "example.com", properties: {} });
+    const path = join(tmp, "race.mtgx");
+    const results = await Promise.allSettled([
+      tool.execute("a", { graphId: g.id, path }),
+      tool.execute("b", { graphId: g.id, path }),
+    ]);
+    expect(results.filter(r => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter(r => r.status === "rejected")).toHaveLength(1);
+    expect((await readMtgxFile(path, "loaded")).entityCount()).toBe(1);
+  });
+
+  it.each([false, true])("does not follow a target symlink inserted during serialization (overwrite=%s)", async overwrite => {
+    const tool = createSaveGraphTool({ registry, config: resolveConfig({ pluginConfig: { outputDir: join(tmp, "output") } }) });
+    await mkdir(join(tmp, "output"));
+    const victim = join(tmp, "victim");
+    await writeFile(victim, "unchanged");
+    const target = join(tmp, "output", "race.mtgx");
+    const generate = JSZip.prototype.generateAsync;
+    vi.spyOn(JSZip.prototype, "generateAsync").mockImplementationOnce(async function (this: JSZip, ...args: Parameters<typeof generate>) {
+      const bytes = await generate.apply(this, args);
+      await symlink(victim, target);
+      return bytes;
+    });
+    const result = await Promise.allSettled([tool.execute("t", { graphId: registry.create("race").id, path: target, overwrite })]);
+    expect(await readFile(victim, "utf8")).toBe("unchanged");
+    if (!overwrite) expect(result[0].status).toBe("rejected");
+  });
+
+  it("refuses a parent directory symlink swapped during serialization", async () => {
+    const output = join(tmp, "output");
+    const outside = join(tmp, "outside");
+    await mkdir(join(output, "nested"), { recursive: true });
+    await mkdir(outside);
+    const target = join(output, "nested", "race.mtgx");
+    const tool = createSaveGraphTool({ registry, config: resolveConfig({ pluginConfig: { outputDir: output } }) });
+    const generate = JSZip.prototype.generateAsync;
+    vi.spyOn(JSZip.prototype, "generateAsync").mockImplementationOnce(async function (this: JSZip, ...args: Parameters<typeof generate>) {
+      const bytes = await generate.apply(this, args);
+      await rename(join(output, "nested"), join(output, "parked"));
+      await symlink(outside, join(output, "nested"));
+      return bytes;
+    });
+    await expect(tool.execute("t", { graphId: registry.create("race").id, path: target })).rejects.toThrow();
+    await expect(readFile(join(outside, "race.mtgx"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
 });

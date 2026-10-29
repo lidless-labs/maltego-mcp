@@ -1,4 +1,8 @@
 import JSZip from "jszip";
+import { constants } from "node:fs";
+import { open, mkdir, link, rename, unlink, type FileHandle } from "node:fs/promises";
+import { basename, dirname, resolve, sep } from "node:path";
+import { randomUUID } from "node:crypto";
 import { XMLBuilder } from "fast-xml-parser";
 import type { Graph } from "./graph.js";
 import { valuePropertyForEntityType } from "./entities.js";
@@ -162,10 +166,58 @@ export async function writeMtgxBytes(graph: Graph): Promise<Uint8Array> {
   return zip.generateAsync({ type: "uint8array" });
 }
 
-export async function writeMtgxFile(graph: Graph, path: string): Promise<void> {
-  const { writeFile, mkdir } = await import("node:fs/promises");
-  const { dirname } = await import("node:path");
+/** Open each canonical directory component without following symlinks.
+ * Linux procfs supplies descriptor-relative operations that Node does not expose
+ * as openat/linkat/renameat. Fail closed when this facility is unavailable.
+ */
+async function openOutputDirectory(path: string): Promise<FileHandle> {
+  if (process.platform !== "linux") {
+    throw new Error("secure graph file writes require Linux with /proc/self/fd");
+  }
+  let directory = await open("/", constants.O_RDONLY | constants.O_DIRECTORY);
+  try {
+    for (const component of resolve(path).split(sep).filter(Boolean)) {
+      const child = `/proc/self/fd/${directory.fd}/${component}`;
+      try { await mkdir(child, { mode: 0o700 }); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+      const next = await open(child, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+      await directory.close();
+      directory = next;
+    }
+    return directory;
+  } catch (error) {
+    await directory.close();
+    throw error;
+  }
+}
+
+export async function writeMtgxFile(
+  graph: Graph,
+  path: string,
+  options: { overwrite?: boolean } = {},
+): Promise<void> {
   const bytes = await writeMtgxBytes(graph);
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, bytes);
+  const directory = await openOutputDirectory(dirname(path));
+  const parent = `/proc/self/fd/${directory.fd}`;
+  const target = `${parent}/${basename(path)}`;
+  const temporary = `${parent}/.mtgx-${randomUUID()}.tmp`;
+  let staged = false;
+  try {
+    const file = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+    staged = true;
+    try { await file.writeFile(bytes); await file.sync(); }
+    finally { await file.close(); }
+    if (options.overwrite ?? true) {
+      // Rename replaces a target symlink itself and never opens its referent.
+      await rename(temporary, target);
+      staged = false;
+    } else {
+      // Hard-link publication is atomic and refuses any existing directory entry.
+      await link(temporary, target);
+    }
+    await directory.sync();
+  } finally {
+    try { if (staged) await unlink(temporary); }
+    finally { await directory.close(); }
+  }
 }
