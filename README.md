@@ -110,16 +110,29 @@ maltego-mcp registers **13 MCP tools**, verified against `src/tools/index.ts`:
 
 MTGX imports accept at most 8 MiB of archive bytes and 16 MiB of extracted
 GraphML. Each import allows 10,000 entities, 20,000 links, 100,000 XML elements,
-and 64 nested tags. DTD declarations are rejected. At most two imports run at
-once, and excess requests fail without queuing their input.
+and 64 nested tags. XML preflight runs before validation or tree allocation and
+also caps attributes at 128 per tag and 100,000 total, and tag length at 65,536
+characters. DTD declarations are rejected. At most two imports run at once,
+and excess requests fail without queuing their input.
 
-Graph file writes require Linux with `/proc/self/fd` available. Other platforms
-fail closed because Node does not provide portable descriptor-relative file
-operations. The writer opens each canonical parent directory without following
-symlinks and publishes a complete staging file atomically. `maltego_save_graph`
-uses exclusive publication unless `overwrite=true`. Authorized replacement
-replaces the directory entry, including a symlink inserted during serialization,
-without writing through that symlink. New files have mode `0600`.
+Graph saves support Linux, macOS, and Windows on local filesystems with hard
+links and atomic rename. The configured output root and its ancestors must be
+operator-controlled, with permissions or ACLs that prevent untrusted users from
+changing them. Pre-existing symlinks below that root are rejected, and paths
+must resolve inside it. The portable path checks do not isolate a hostile
+process running as the same account, or an actor allowed to mutate ancestors
+or ACLs. Linux additionally pins opened directories through `/proc/self/fd`.
+
+Each save writes a complete file inside a fresh private staging directory before
+atomic publication. POSIX staging directories use mode `0700` and files use
+`0600`. Windows uses the trusted root's inherited ACLs. Every save/expand/IOC
+tool uses exclusive, no-overwrite publication unless `overwrite=true`.
+Authorized replacement replaces the target directory entry without opening its
+referent. Staging is cleaned up on handled failures. A process crash may leave
+a private `.mtgx-*` directory, which an operator can remove after confirming no
+save is active. Atomic publication does not promise power-loss durability on
+all platforms. Filesystems without hard links return an error for exclusive
+saves rather than falling back to a check-then-overwrite sequence.
 
 Public WHOIS results are untrusted external data only. Returned text escapes
 marker delimiters in keys and values, includes provenance, and reports whether
