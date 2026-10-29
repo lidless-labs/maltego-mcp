@@ -1,5 +1,5 @@
 import { ToolValidationError } from "./errors.js";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, realpathSync, lstatSync } from "node:fs";
 import { basename, dirname, resolve, isAbsolute, relative } from "node:path";
 
 export function resolveHomeTilde(path: string): string {
@@ -50,6 +50,20 @@ export function confineToOutputDir(userPath: string, outputDir: string): string 
       `path '${userPath}' resolves outside the configured output directory (${absoluteBase}); ` +
         `set MALTEGO_MCP_OUTPUT_DIR to a parent of your target or use a path under the current output dir`
     );
+  }
+  // Check the caller's spelling too: canonicalization must not silently turn
+  // an in-root symlink into permission to replace its referent.
+  let component = absoluteTarget;
+  const configuredBase = resolve(outputDir);
+  while (component !== configuredBase && component !== absoluteBase) {
+    try {
+      if (lstatSync(component).isSymbolicLink()) throw new ToolValidationError("output path must not contain symlinks");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    const parent = dirname(component);
+    if (parent === component) break;
+    component = parent;
   }
   return canonicalTarget;
 }

@@ -1,13 +1,10 @@
-import { access } from "node:fs/promises";
 import { Type, type Static } from "@sinclair/typebox";
 import { z } from "zod";
 import type { GraphRegistry } from "../server/registry.js";
 import type { MaltegoConfig } from "../config.js";
 import { asnLookup } from "../lookups/asn.js";
-import { writeMtgxFile } from "../graph/writer.js";
 import { confineToOutputDir } from "../server/paths.js";
-import { ToolFileSystemError } from "../server/errors.js";
-import { jsonToolResult } from "./_shared.js";
+import { jsonToolResult, saveGraphFile } from "./_shared.js";
 
 const Schema = Type.Object(
   {
@@ -24,19 +21,6 @@ export const mcpInputShape = {
   outputPath: z.string(),
   overwrite: z.boolean().optional(),
 };
-
-async function ensureWritable(path: string, overwrite: boolean): Promise<void> {
-  if (overwrite) return;
-  try { await access(path); }
-  catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw err;
-  }
-  throw new ToolFileSystemError(
-    `file already exists, refusing to overwrite (pass overwrite=true): ${path}`,
-    path,
-  );
-}
 
 export interface ToolDeps { registry: GraphRegistry; config: MaltegoConfig; }
 
@@ -66,8 +50,7 @@ export function createExpandIpTool(deps: ToolDeps) {
       }
 
       const outPath = confineToOutputDir(input.outputPath, deps.config.outputDir);
-      await ensureWritable(outPath, input.overwrite ?? false);
-      await writeMtgxFile(g, outPath);
+      await saveGraphFile(g, outPath, input.overwrite ?? false);
       return jsonToolResult({ graphId: g.id, path: outPath, entityCount: g.entityCount(), linkCount: g.linkCount() });
     },
   };

@@ -35,4 +35,10 @@ describe("confineToOutputDir", () => {
       /outside the configured output directory/,
     );
   });
+  it("rejects pre-existing symlinks even when their referent is inside outputDir", async () => {
+    await mkdir(join(outputDir, "actual"));
+    await symlink(join(outputDir, "actual"), join(outputDir, "alias"), process.platform === "win32" ? "junction" : "dir");
+    expect(() => confineToOutputDir("alias/graph.mtgx", outputDir)).toThrow(/symlink/);
+  });
+
 });
