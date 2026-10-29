@@ -12,6 +12,11 @@
 
 ### Fixed
 
+- Bound MTGX archive reads, streamed extraction, XML structure, graph growth, and concurrent imports.
+- Publish graph files atomically through pinned parent directories on Linux. Enforce the save tool's no-overwrite flag at publication and fail closed on platforms without the required filesystem support.
+- Label public WHOIS output as untrusted data, escape marker delimiters, and bound response text.
+- Update compatible dependencies to clear npm advisories and pin executable CI actions to commit SHAs.
+
 - Start exactly one stdio server from the bundled `maltego-mcp` and `maltegoctl mcp` entrypoints, preserving graph handles across requests; report the package version in the MCP handshake and ready message.
 - Emit Maltego-compatible `.mtgx` GraphML with native entity/link keys and renderers, standard entity value properties, and manual-link metadata; keep the reader compatible with graphs written by earlier releases.
 
