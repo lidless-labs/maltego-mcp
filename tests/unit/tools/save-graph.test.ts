@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import * as filesystem from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { mkdtemp, readFile, rm, writeFile, symlink, mkdir, rename } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -7,6 +8,11 @@ import { readMtgxFile } from "../../../src/graph/reader.js";
 import { GraphRegistry } from "../../../src/server/registry.js";
 import { createSaveGraphTool } from "../../../src/tools/save-graph.js";
 import { resolveConfig } from "../../../src/config.js";
+
+vi.mock("node:fs/promises", async importOriginal => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...actual, open: vi.fn(actual.open) };
+});
 
 describe("save-graph tool", () => {
   let registry: GraphRegistry;
@@ -83,6 +89,29 @@ describe("save-graph tool", () => {
       return bytes;
     });
     await expect(tool.execute("t", { graphId: registry.create("race").id, path: target })).rejects.toThrow();
+    await expect(readFile(join(outside, "race.mtgx"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("keeps writes on the opened parent when its path is swapped after open", async () => {
+    const output = join(tmp, "output");
+    const outside = join(tmp, "outside");
+    await mkdir(join(output, "nested"), { recursive: true });
+    await mkdir(outside);
+    const tool = createSaveGraphTool({ registry, config: resolveConfig({ pluginConfig: { outputDir: output } }) });
+    const { open: nativeOpen } = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+    let swapped = false;
+    vi.spyOn(filesystem, "open").mockImplementation(async (path, flags, mode) => {
+      const handle = await nativeOpen(path, flags, mode);
+      if (!swapped && String(path).endsWith("/nested")) {
+        swapped = true;
+        await rename(join(output, "nested"), join(output, "parked"));
+        await symlink(outside, join(output, "nested"));
+      }
+      return handle;
+    });
+    await tool.execute("t", { graphId: registry.create("race").id, path: join(output, "nested", "race.mtgx") });
+    expect(swapped).toBe(true);
+    expect((await readMtgxFile(join(output, "parked", "race.mtgx"), "loaded")).entityCount()).toBe(0);
     await expect(readFile(join(outside, "race.mtgx"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
