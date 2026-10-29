@@ -1,8 +1,7 @@
 import JSZip from "jszip";
 import { constants } from "node:fs";
-import { open, mkdir, link, rename, unlink, type FileHandle } from "node:fs/promises";
-import { basename, dirname, resolve, sep } from "node:path";
-import { randomUUID } from "node:crypto";
+import { open, mkdir, mkdtemp, lstat, realpath, rmdir, link, rename, unlink, type FileHandle } from "node:fs/promises";
+import { basename, dirname, resolve, sep, parse, relative, join } from "node:path";
 import { XMLBuilder } from "fast-xml-parser";
 import type { Graph } from "./graph.js";
 import { valuePropertyForEntityType } from "./entities.js";
@@ -166,13 +165,23 @@ export async function writeMtgxBytes(graph: Graph): Promise<Uint8Array> {
   return zip.generateAsync({ type: "uint8array" });
 }
 
-/** Open each canonical directory component without following symlinks.
- * Linux procfs supplies descriptor-relative operations that Node does not expose
- * as openat/linkat/renameat. Fail closed when this facility is unavailable.
+/** Linux pins parents through procfs. Other platforms use checked paths inside
+ * an operator-controlled directory tree. Neither isolates hostile same-user code.
  */
-async function openOutputDirectory(path: string): Promise<FileHandle> {
+async function openOutputDirectory(path: string): Promise<FileHandle | null> {
   if (process.platform !== "linux") {
-    throw new Error("secure graph file writes require Linux with /proc/self/fd");
+    const absolute = resolve(path);
+    let current = parse(absolute).root;
+    for (const component of relative(current, absolute).split(sep).filter(Boolean)) {
+      current = join(current, component);
+      try { await mkdir(current, { mode: 0o700 }); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+      const info = await lstat(current);
+      if (info.isSymbolicLink() || !info.isDirectory()) throw new Error("output parent must be a directory without symlinks");
+    }
+    // Resolve only after rejecting symlinks, before creating the private stage.
+    if (relative(absolute, await realpath(absolute)) !== "") throw new Error("output parent changed during validation");
+    return null;
   }
   let directory = await open("/", constants.O_RDONLY | constants.O_DIRECTORY);
   try {
@@ -198,26 +207,52 @@ export async function writeMtgxFile(
 ): Promise<void> {
   const bytes = await writeMtgxBytes(graph);
   const directory = await openOutputDirectory(dirname(path));
-  const parent = `/proc/self/fd/${directory.fd}`;
-  const target = `${parent}/${basename(path)}`;
-  const temporary = `${parent}/.mtgx-${randomUUID()}.tmp`;
-  let staged = false;
+  const parent = directory ? `/proc/self/fd/${directory.fd}` : resolve(dirname(path));
+  const target = join(parent, basename(path));
+  let staging: string | undefined;
+  let stagingDirectory: FileHandle | undefined;
+  let file: FileHandle | undefined;
+  let temporary: string | undefined;
   try {
-    const file = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
-    staged = true;
-    try { await file.writeFile(bytes); await file.sync(); }
-    finally { await file.close(); }
+    // mkdtemp creates a private 0700 directory on POSIX. Windows relies on the
+    // operator-controlled root's inherited ACL. A 0600 file in a shared directory
+    // alone would not prevent another directory writer from substituting it.
+    staging = await mkdtemp(join(parent, ".mtgx-"));
+    if (directory) stagingDirectory = await open(staging, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+    const stageParent = stagingDirectory ? `/proc/self/fd/${stagingDirectory.fd}` : staging;
+    temporary = join(stageParent, "graph.mtgx");
+    const noFollow = process.platform === "linux" ? constants.O_NOFOLLOW : 0;
+    file = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 0o600);
+    await file.writeFile(bytes);
+    await file.sync();
+    const written = await file.stat();
+    const source = await lstat(temporary);
+    if (!source.isFile() || source.dev !== written.dev || source.ino !== written.ino || source.size !== written.size) {
+      throw new Error("staging source changed before publication");
+    }
+    // Close before rename for Windows compatibility. The private directory and
+    // trusted ancestors protect the source pathname throughout publication.
+    await file.close();
+    file = undefined;
     if (options.overwrite ?? true) {
-      // Rename replaces a target symlink itself and never opens its referent.
       await rename(temporary, target);
-      staged = false;
     } else {
-      // Hard-link publication is atomic and refuses any existing directory entry.
+      // Atomic exclusive publication, even when another save wins the race.
       await link(temporary, target);
     }
-    await directory.sync();
+    if (directory) await directory.sync();
   } finally {
-    try { if (staged) await unlink(temporary); }
-    finally { await directory.close(); }
+    try {
+      if (file) await file.close();
+      if (temporary) {
+        try { await unlink(temporary); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+      }
+    } finally {
+      try {
+        if (stagingDirectory) await stagingDirectory.close();
+        if (staging) await rmdir(staging);
+      } finally { if (directory) await directory.close(); }
+    }
   }
 }
