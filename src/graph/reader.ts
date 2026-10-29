@@ -48,6 +48,63 @@ async function extractGraphml(file: JSZip.JSZipObject): Promise<string> {
   });
 }
 
+/** Linear lexical preflight. It allocates no XML tree or attribute map. Syntax
+ * validation still runs afterwards, on input with bounded structural cost.
+ */
+function checkXmlStructure(xml: string): void {
+  let depth = 0;
+  let elements = 0;
+  let entities = 0;
+  let links = 0;
+  let attributes = 0;
+  let cursor = 0;
+  while ((cursor = xml.indexOf("<", cursor)) !== -1) {
+    let terminator: string | undefined;
+    if (xml.startsWith("<!--", cursor)) terminator = "-->";
+    else if (xml.startsWith("<![CDATA[", cursor)) terminator = "]]>";
+    if (terminator) {
+      const end = xml.indexOf(terminator, cursor + terminator.length);
+      if (end === -1) throw new Error("invalid GraphML: unterminated comment or CDATA");
+      cursor = end + terminator.length;
+      continue;
+    }
+    if (xml.startsWith("<!", cursor)) throw new Error("DTD declarations are not allowed in GraphML");
+    const start = cursor;
+    const closing = xml[cursor + 1] === "/";
+    const instruction = xml[cursor + 1] === "?";
+    let nameEnd = cursor + (closing ? 2 : 1);
+    while (nameEnd < xml.length && !/[\s/>]/.test(xml[nameEnd])) {
+      if (nameEnd - start > 65536) throw new Error("XML tag length limit exceeded (65536)");
+      nameEnd++;
+    }
+    const name = xml.slice(cursor + (closing ? 2 : 1), nameEnd);
+    let quote = "";
+    let tagAttributes = 0;
+    for (cursor = nameEnd; cursor < xml.length; cursor++) {
+      if (cursor - start > 65536) throw new Error("XML tag length limit exceeded (65536)");
+      const char = xml[cursor];
+      if (quote) { if (char === quote) quote = ""; }
+      else if (char === '"' || char === "'") quote = char;
+      else if (char === "=") {
+        if (++tagAttributes > 128 || ++attributes > 100_000) throw new Error("XML attribute limit exceeded (128 per tag, 100000 total)");
+      } else if (char === ">" && (!instruction || xml[cursor - 1] === "?")) break;
+    }
+    if (cursor === xml.length) throw new Error("invalid GraphML: unterminated tag");
+    if (!instruction) {
+      if (closing) {
+        if (--depth < 0) throw new Error("invalid GraphML: unexpected closing tag");
+      } else {
+        if (++elements > 100_000) throw new Error("XML element limit exceeded (100000)");
+        if (name === "node" && ++entities > 10_000) throw new Error("entity limit exceeded (10000)");
+        if (name === "edge" && ++links > 20_000) throw new Error("link limit exceeded (20000)");
+        if (depth + 1 > 64) throw new Error("XML depth limit exceeded (64)");
+        if (xml[cursor - 1] !== "/") depth++;
+      }
+    }
+    cursor++;
+  }
+}
+
 export async function readMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): Promise<Graph> {
   checkCompressedSize(bytes.byteLength);
   return withImportSlot(() => parseMtgxBytes(bytes, newGraphId));
@@ -66,21 +123,13 @@ async function parseMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): P
   }
   const xml = await extractGraphml(file);
   if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(xml)) throw new Error("DTD declarations are not allowed in GraphML");
+  checkXmlStructure(xml);
   const validation = XMLValidator.validate(xml);
   if (validation !== true) throw new Error(`invalid GraphML: ${validation.err.msg}`);
-  let elements = 0;
-  let entities = 0;
-  let links = 0;
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
     maxNestedTags: 64,
-    updateTag(name) {
-      if (++elements > 100_000) throw new Error("XML element limit exceeded (100000)");
-      if (name === "node" && ++entities > 10_000) throw new Error("entity limit exceeded (10000)");
-      if (name === "edge" && ++links > 20_000) throw new Error("link limit exceeded (20000)");
-      return name;
-    },
   });
   const parsed = parser.parse(xml);
   const gml = parsed.graphml?.graph;

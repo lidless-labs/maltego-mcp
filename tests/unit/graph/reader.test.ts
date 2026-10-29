@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Graph } from "../../../src/graph/graph.js";
 import { writeMtgxBytes } from "../../../src/graph/writer.js";
 import JSZip from "jszip";
+import { XMLValidator } from "fast-xml-parser";
 import { mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -140,5 +141,36 @@ describe("MTGX import budgets", () => {
     await Promise.all([first, second]);
     await expect(readMtgxBytes(new Uint8Array(), "bad")).rejects.toThrow();
     await expect(readMtgxBytes(bytes, "again")).resolves.toBeInstanceOf(Graph);
+  });
+});
+
+
+describe("GraphML structural preflight", () => {
+  it.each([
+    ["depth", "<a>".repeat(65) + "</a>".repeat(65)],
+    ["elements", "<data/>".repeat(100_001)],
+    ["total attributes", '<data a="x" b="y"/>'.repeat(50_001)],
+    ["tag length instruction", '<?meta value > ' + "x".repeat(65536) + '?>'],
+    ["tag length", '<data a="' + "x".repeat(65536) + '"/>'],
+    ["attributes", "<data " + Array.from({ length: 129 }, (_, i) => `a${i}="x"`).join(" ") + "/>"],
+  ])("rejects %s before the unrestricted validator", async (_kind, body) => {
+    const validate = vi.spyOn(XMLValidator, "validate");
+    try {
+      await expect(readMtgxBytes(await archive(`<graphml><graph>${body}</graph></graphml>`), "guard")).rejects.toThrow(_kind.includes("attributes") ? /attribute limit/ : _kind.startsWith("tag length") ? /tag length limit/ : /limit|depth|nested tags/i);
+      expect(validate.mock.calls.length).toBe(0);
+    } finally { validate.mockRestore(); }
+  });
+
+  it.each([
+    "<graphml><graph></graphml>",
+    '<graphml><graph id="a" id="b"/></graphml>',
+    '<graphml><graph><data broken/></graph></graphml>',
+  ])("rejects bounded malformed XML: %s", async xml => {
+    await expect(readMtgxBytes(await archive(xml), "malformed")).rejects.toThrow(/invalid GraphML/);
+  });
+
+  it("ignores markup inside comments, CDATA and quoted attributes", async () => {
+    const xml = '<graphml><!-- <a>' + '<a>'.repeat(70) + ' --><graph id="G" note="a > b"><data><![CDATA[' + '<a>'.repeat(70) + ']]></data></graph></graphml>';
+    await expect(readMtgxBytes(await archive(xml), "valid")).resolves.toBeInstanceOf(Graph);
   });
 });
