@@ -1,5 +1,5 @@
 import type { Graph } from "../graph/graph.js";
-import { writeMtgxFile } from "../graph/writer.js";
+import { writeMtgxFile, GraphPublicationError } from "../graph/writer.js";
 import { ToolFileSystemError } from "../server/errors.js";
 
 export async function saveGraphFile(graph: Graph, path: string, overwrite: boolean): Promise<void> {
@@ -10,6 +10,7 @@ export async function saveGraphFile(graph: Graph, path: string, overwrite: boole
       `failed to write .mtgx: ${cause.code === "EEXIST" ? "file already exists, refusing to overwrite (pass overwrite=true)" : cause.message}`,
       path,
       cause,
+      err instanceof GraphPublicationError ? err.publication_state : undefined,
     );
   }
 }

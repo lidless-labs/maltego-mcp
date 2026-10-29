@@ -6,7 +6,7 @@ export class ToolValidationError extends Error {
 }
 
 export class ToolFileSystemError extends Error {
-  constructor(message: string, readonly path: string, readonly cause?: NodeJS.ErrnoException) {
+  constructor(message: string, readonly path: string, readonly cause?: NodeJS.ErrnoException, readonly publicationState?: "published") {
     super(message);
     this.name = "ToolFileSystemError";
   }
@@ -36,6 +36,10 @@ export function toToolResponse(err: unknown): {
   if (err instanceof ToolFileSystemError) {
     details.path = err.path;
     extras.push(`path: ${err.path}`);
+    if (err.publicationState) {
+      details.publication_state = err.publicationState;
+      extras.push(`publication_state: ${err.publicationState}`);
+    }
     if (err.cause) {
       const cause = {
         name: err.cause.name,

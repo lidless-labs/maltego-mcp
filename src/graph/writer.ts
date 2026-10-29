@@ -200,6 +200,14 @@ async function openOutputDirectory(path: string): Promise<FileHandle | null> {
   }
 }
 
+export class GraphPublicationError extends Error {
+  readonly publication_state = "published" as const;
+  constructor(readonly path: string, cause: unknown) {
+    super("Graph was published. A later durability or cleanup operation failed. Inspect the target before retrying.", { cause });
+    this.name = "GraphPublicationError";
+  }
+}
+
 export async function writeMtgxFile(
   graph: Graph,
   path: string,
@@ -213,46 +221,53 @@ export async function writeMtgxFile(
   let stagingDirectory: FileHandle | undefined;
   let file: FileHandle | undefined;
   let temporary: string | undefined;
+  let published = false;
   try {
-    // mkdtemp creates a private 0700 directory on POSIX. Windows relies on the
-    // operator-controlled root's inherited ACL. A 0600 file in a shared directory
-    // alone would not prevent another directory writer from substituting it.
-    staging = await mkdtemp(join(parent, ".mtgx-"));
-    if (directory) stagingDirectory = await open(staging, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
-    const stageParent = stagingDirectory ? `/proc/self/fd/${stagingDirectory.fd}` : staging;
-    temporary = join(stageParent, "graph.mtgx");
-    const noFollow = process.platform === "linux" ? constants.O_NOFOLLOW : 0;
-    file = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 0o600);
-    await file.writeFile(bytes);
-    await file.sync();
-    const written = await file.stat();
-    const source = await lstat(temporary);
-    if (!source.isFile() || source.dev !== written.dev || source.ino !== written.ino || source.size !== written.size) {
-      throw new Error("staging source changed before publication");
-    }
-    // Close before rename for Windows compatibility. The private directory and
-    // trusted ancestors protect the source pathname throughout publication.
-    await file.close();
-    file = undefined;
-    if (options.overwrite ?? true) {
-      await rename(temporary, target);
-    } else {
-      // Atomic exclusive publication, even when another save wins the race.
-      await link(temporary, target);
-    }
-    if (directory) await directory.sync();
-  } finally {
     try {
-      if (file) await file.close();
-      if (temporary) {
-        try { await unlink(temporary); }
-        catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+      // mkdtemp creates a private 0700 directory on POSIX. Windows relies on the
+      // operator-controlled root's inherited ACL. A 0600 file in a shared directory
+      // alone would not prevent another directory writer from substituting it.
+      staging = await mkdtemp(join(parent, ".mtgx-"));
+      if (directory) stagingDirectory = await open(staging, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+      const stageParent = stagingDirectory ? `/proc/self/fd/${stagingDirectory.fd}` : staging;
+      temporary = join(stageParent, "graph.mtgx");
+      const noFollow = process.platform === "linux" ? constants.O_NOFOLLOW : 0;
+      file = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 0o600);
+      await file.writeFile(bytes);
+      await file.sync();
+      const written = await file.stat();
+      const source = await lstat(temporary);
+      if (!source.isFile() || source.dev !== written.dev || source.ino !== written.ino || source.size !== written.size) {
+        throw new Error("staging source changed before publication");
       }
+      // Close before rename for Windows compatibility. The private directory and
+      // trusted ancestors protect the source pathname throughout publication.
+      await file.close();
+      file = undefined;
+      if (options.overwrite ?? true) {
+        await rename(temporary, target);
+      } else {
+        // Atomic exclusive publication, even when another save wins the race.
+        await link(temporary, target);
+      }
+      published = true;
+      if (directory) await directory.sync();
     } finally {
       try {
-        if (stagingDirectory) await stagingDirectory.close();
-        if (staging) await rmdir(staging);
-      } finally { if (directory) await directory.close(); }
+        if (file) await file.close();
+        if (temporary) {
+          try { await unlink(temporary); }
+          catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+        }
+      } finally {
+        try {
+          if (stagingDirectory) await stagingDirectory.close();
+          if (staging) await rmdir(staging);
+        } finally { if (directory) await directory.close(); }
+      }
     }
+  } catch (error) {
+    if (published) throw new GraphPublicationError(path, error);
+    throw error;
   }
 }
