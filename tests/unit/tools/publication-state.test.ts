@@ -20,11 +20,14 @@ describe("publication failure state", () => {
     vi.mocked(fs.open).mockReset().mockImplementation(actual.open);
     vi.mocked(fs.unlink).mockReset().mockImplementation(actual.unlink);
     vi.mocked(fs.rmdir).mockReset().mockImplementation(actual.rmdir);
-    root = await fs.mkdtemp(join(tmpdir(), "maltego-publication-"));
+    root = await fs.realpath(await fs.mkdtemp(join(tmpdir(), "maltego-publication-")));
   });
   afterEach(async () => { vi.restoreAllMocks(); await fs.rm(root, { recursive: true, force: true }); });
 
-  it.each(["directory sync", "staging unlink", "staging removal"])("reports an existing complete target after %s fails", async fault => {
+  const faults = process.platform === "linux"
+    ? ["directory sync", "staging unlink", "staging removal"]
+    : ["staging unlink", "staging removal"];
+  it.each(faults)("reports an existing complete target after %s fails", async fault => {
     const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
     if (fault === "directory sync") {
       vi.mocked(fs.open).mockImplementation(async (path, flags, mode) => {
