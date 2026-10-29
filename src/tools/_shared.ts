@@ -1,3 +1,19 @@
+import type { Graph } from "../graph/graph.js";
+import { writeMtgxFile } from "../graph/writer.js";
+import { ToolFileSystemError } from "../server/errors.js";
+
+export async function saveGraphFile(graph: Graph, path: string, overwrite: boolean): Promise<void> {
+  try { await writeMtgxFile(graph, path, { overwrite }); }
+  catch (err) {
+    const cause = err as NodeJS.ErrnoException;
+    throw new ToolFileSystemError(
+      `failed to write .mtgx: ${cause.code === "EEXIST" ? "file already exists, refusing to overwrite (pass overwrite=true)" : cause.message}`,
+      path,
+      cause,
+    );
+  }
+}
+
 export function jsonToolResult<T>(details: T): {
   content: Array<{ type: "text"; text: string }>;
   details: T;

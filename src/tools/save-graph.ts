@@ -2,10 +2,8 @@ import { Type, type Static } from "@sinclair/typebox";
 import { z } from "zod";
 import type { GraphRegistry } from "../server/registry.js";
 import type { MaltegoConfig } from "../config.js";
-import { writeMtgxFile } from "../graph/writer.js";
 import { confineToOutputDir } from "../server/paths.js";
-import { ToolFileSystemError } from "../server/errors.js";
-import { jsonToolResult } from "./_shared.js";
+import { jsonToolResult, saveGraphFile } from "./_shared.js";
 
 const Schema = Type.Object(
   {
@@ -35,14 +33,7 @@ export function createSaveGraphTool(deps: ToolDeps) {
       const input = raw as Input;
       const g = deps.registry.getOrThrow(input.graphId);
       const resolved = confineToOutputDir(input.path, deps.config.outputDir);
-      try { await writeMtgxFile(g, resolved, { overwrite: input.overwrite ?? false }); }
-      catch (err) {
-        throw new ToolFileSystemError(
-          `failed to write .mtgx: ${(err as NodeJS.ErrnoException).code === "EEXIST" ? "file already exists, refusing to overwrite (pass overwrite=true)" : (err as Error).message}`,
-          resolved,
-          err as NodeJS.ErrnoException,
-        );
-      }
+      await saveGraphFile(g, resolved, input.overwrite ?? false);
       return jsonToolResult({ path: resolved, entityCount: g.entityCount(), linkCount: g.linkCount() });
     },
   };
