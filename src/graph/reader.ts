@@ -1,9 +1,59 @@
 import JSZip from "jszip";
-import { XMLParser } from "fast-xml-parser";
+import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { Graph } from "./graph.js";
 import { valuePropertyForEntityType } from "./entities.js";
 
+const MAX_COMPRESSED_BYTES = 8 * 1024 * 1024;
+const MAX_XML_BYTES = 16 * 1024 * 1024;
+let activeImports = 0;
+
+async function withImportSlot<T>(operation: () => Promise<T>): Promise<T> {
+  // Reject excess work instead of retaining an unbounded queue of input buffers.
+  if (activeImports >= 2) throw new Error("concurrent import limit exceeded (2)");
+  activeImports++;
+  try { return await operation(); }
+  finally { activeImports--; }
+}
+
+function checkCompressedSize(size: number): void {
+  if (size > MAX_COMPRESSED_BYTES) throw new Error("compressed MTGX byte limit exceeded (8 MiB)");
+}
+
+async function extractGraphml(file: JSZip.JSZipObject): Promise<string> {
+  // JSZip's public stream helper can pause the upstream compressed-input worker.
+  // Never accumulate the entire expansion with file.async().
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let stopped = false;
+    // JSZip documents this API but omits it from JSZipObject's declarations.
+    const stream = (file as JSZip.JSZipObject & {
+      internalStream(type: "nodebuffer"): JSZip.JSZipStreamHelper<Buffer>;
+    }).internalStream("nodebuffer");
+    stream.on("data", (chunk: Buffer) => {
+      if (stopped) return;
+      size += chunk.length;
+      if (size > MAX_XML_BYTES) {
+        stopped = true;
+        stream.pause();
+        chunks.length = 0;
+        reject(new Error("decompressed GraphML byte limit exceeded (16 MiB)"));
+      } else { chunks.push(chunk); }
+    });
+    stream.on("error", (error: Error) => { chunks.length = 0; reject(error); });
+    stream.on("end", () => {
+      if (!stopped) resolve(Buffer.concat(chunks, size).toString("utf8"));
+    });
+    stream.resume();
+  });
+}
+
 export async function readMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): Promise<Graph> {
+  checkCompressedSize(bytes.byteLength);
+  return withImportSlot(() => parseMtgxBytes(bytes, newGraphId));
+}
+
+async function parseMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): Promise<Graph> {
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(bytes);
@@ -14,8 +64,24 @@ export async function readMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: stri
   if (!file) {
     throw new Error("missing Graphs/Graph1.graphml in .mtgx archive");
   }
-  const xml = await file.async("string");
-  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+  const xml = await extractGraphml(file);
+  if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(xml)) throw new Error("DTD declarations are not allowed in GraphML");
+  const validation = XMLValidator.validate(xml);
+  if (validation !== true) throw new Error(`invalid GraphML: ${validation.err.msg}`);
+  let elements = 0;
+  let entities = 0;
+  let links = 0;
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "@_",
+    maxNestedTags: 64,
+    updateTag(name) {
+      if (++elements > 100_000) throw new Error("XML element limit exceeded (100000)");
+      if (name === "node" && ++entities > 10_000) throw new Error("entity limit exceeded (10000)");
+      if (name === "edge" && ++links > 20_000) throw new Error("link limit exceeded (20000)");
+      return name;
+    },
+  });
   const parsed = parser.parse(xml);
   const gml = parsed.graphml?.graph;
   if (!gml) {
@@ -109,7 +175,23 @@ export async function readMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: stri
 }
 
 export async function readMtgxFile(path: string, newGraphId: string): Promise<Graph> {
-  const { readFile } = await import("node:fs/promises");
-  const bytes = await readFile(path);
-  return readMtgxBytes(bytes, newGraphId);
+  return withImportSlot(async () => {
+    const { open } = await import("node:fs/promises");
+    const { constants } = await import("node:fs");
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    try {
+      const stat = await file.stat();
+      if (!stat.isFile()) throw new Error("MTGX input must be a regular file");
+      checkCompressedSize(stat.size);
+      const chunks: Buffer[] = [];
+      let size = 0;
+      // A capped read also protects against growth after fstat.
+      for await (const chunk of file.createReadStream({ autoClose: false, highWaterMark: 64 * 1024 })) {
+        size += chunk.length;
+        checkCompressedSize(size);
+        chunks.push(chunk);
+      }
+      return await parseMtgxBytes(Buffer.concat(chunks, size), newGraphId);
+    } finally { await file.close(); }
+  });
 }

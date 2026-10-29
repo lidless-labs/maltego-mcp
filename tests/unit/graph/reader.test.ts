@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { Graph } from "../../../src/graph/graph.js";
 import { writeMtgxBytes } from "../../../src/graph/writer.js";
+import JSZip from "jszip";
+import { mkdtemp, open, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { readMtgxFile } from "../../../src/graph/reader.js";
 import { readMtgxBytes } from "../../../src/graph/reader.js";
 
 describe("readMtgxBytes", () => {
@@ -87,5 +92,53 @@ describe("readMtgxBytes", () => {
     const restored = await readMtgxBytes(bytes, "g-legacy");
     expect(restored.allEntities()[0].value).toBe("example.com");
     expect(restored.allEntities()[0].position).toEqual({ x: 12, y: 34 });
+  });
+});
+
+async function archive(xml: string) {
+  return new JSZip().file("Graphs/Graph1.graphml", xml).generateAsync({ type: "uint8array", compression: "DEFLATE" });
+}
+
+describe("MTGX import budgets", () => {
+  it("rejects compressed input before ZIP parsing", async () => {
+    await expect(readMtgxBytes(new Uint8Array(8 * 1024 * 1024 + 1), "large")).rejects.toThrow(/compressed.*limit/i);
+  });
+
+  it("rejects oversized files before reading their contents", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "mtgx-budget-"));
+    try {
+      const path = join(dir, "large.mtgx");
+      const handle = await open(path, "wx");
+      await handle.truncate(8 * 1024 * 1024 + 1);
+      await handle.close();
+      await expect(readMtgxFile(path, "large")).rejects.toThrow(/compressed.*limit/i);
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
+  it("stops a compressed expansion at the decompressed byte limit", async () => {
+    const bytes = await archive(`<graphml><graph>${" ".repeat(16 * 1024 * 1024)}</graph></graphml>`);
+    await expect(readMtgxBytes(bytes, "bomb")).rejects.toThrow(/decompressed.*limit/i);
+  });
+
+  it.each([
+    ["entities", '<node id="n"/>'.repeat(10_001)],
+    ["links", '<edge source="n" target="n"/>'.repeat(20_001)],
+    ["elements", '<data/>'.repeat(100_001)],
+    ["depth", '<a>'.repeat(65) + '</a>'.repeat(65)],
+    ["DTD", '<!DOCTYPE graphml [<!ENTITY x "expanded">]><graphml><graph>&x;</graph></graphml>'],
+  ])("rejects excessive %s before building a graph", async (_name, body) => {
+    const xml = body.startsWith('<!') ? body : `<graphml><graph>${body}</graph></graphml>`;
+    await expect(readMtgxBytes(await archive(xml), "growth")).rejects.toThrow(/limit|DTD|DOCTYPE|depth|nested tags/i);
+  });
+
+  it("bounds concurrent imports and releases slots after failure", async () => {
+    const bytes = await archive('<graphml><graph id="G"/></graphml>');
+    const first = readMtgxBytes(bytes, "a");
+    const second = readMtgxBytes(bytes, "b");
+    const third = readMtgxBytes(bytes, "c");
+    await expect(third).rejects.toThrow(/concurrent.*limit/i);
+    await Promise.all([first, second]);
+    await expect(readMtgxBytes(new Uint8Array(), "bad")).rejects.toThrow();
+    await expect(readMtgxBytes(bytes, "again")).resolves.toBeInstanceOf(Graph);
   });
 });
