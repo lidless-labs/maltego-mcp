@@ -5,6 +5,11 @@ import { valuePropertyForEntityType } from "./entities.js";
 
 const MAX_COMPRESSED_BYTES = 8 * 1024 * 1024;
 const MAX_XML_BYTES = 16 * 1024 * 1024;
+const MAX_ZIP_ENTRIES = 1024;
+const MAX_ZIP_PATH_BYTES = 1024;
+const MAX_ZIP_EXTRA_BYTES = 4096;
+const MAX_ZIP_COMMENT_BYTES = 4096;
+const MAX_ZIP_TOTAL_BYTES = 32 * 1024 * 1024;
 let activeImports = 0;
 
 async function withImportSlot<T>(operation: () => Promise<T>): Promise<T> {
@@ -17,6 +22,108 @@ async function withImportSlot<T>(operation: () => Promise<T>): Promise<T> {
 
 function checkCompressedSize(size: number): void {
   if (size > MAX_COMPRESSED_BYTES) throw new Error("compressed MTGX byte limit exceeded (8 MiB)");
+}
+
+function zipMetadataError(message: string): never {
+  throw new Error(`ZIP metadata: ${message}`);
+}
+
+function checkZipExtra(bytes: Buffer, start: number, length: number): void {
+  const end = start + length;
+  let fields = 0;
+  while (start < end) {
+    if (start + 4 > end) zipMetadataError("truncated extra field header");
+    if (++fields > 64) zipMetadataError("extra field count limit exceeded (64 per header)");
+    const id = bytes.readUInt16LE(start);
+    const size = bytes.readUInt16LE(start + 2);
+    start += 4;
+    if (start + size > end) zipMetadataError("truncated extra field");
+    if (id === 0x0001) zipMetadataError("ZIP64 is not supported");
+    // JSZip can take a filename from this field instead of the local header.
+    if (id === 0x7075 && (size < 5 || size - 5 > MAX_ZIP_PATH_BYTES)) {
+      zipMetadataError("Unicode path limit exceeded or malformed field (1024 bytes)");
+    }
+    start += size;
+  }
+}
+
+/** Bound metadata before JSZip creates entry objects, decoded names or extras.
+ * Require exact offsets/counts: JSZip otherwise tolerates incorrect counts and
+ * rebases offsets for prepended data. This supports ordinary single-disk ZIP,
+ * including data descriptors, but deliberately excludes ZIP64.
+ */
+function checkZipMetadata(input: Uint8Array | Buffer): void {
+  const bytes = Buffer.from(input.buffer, input.byteOffset, input.byteLength);
+  // Use the same last signature as JSZip so a comment cannot redirect its parser.
+  const end = bytes.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  if (end < Math.max(0, bytes.length - 22 - 0xffff) || end + 22 > bytes.length) {
+    zipMetadataError("missing or truncated ZIP end record");
+  }
+  if (end + 22 + bytes.readUInt16LE(end + 20) !== bytes.length) {
+    zipMetadataError("invalid ZIP end comment length or trailing bytes");
+  }
+  const disk = bytes.readUInt16LE(end + 4);
+  const centralDisk = bytes.readUInt16LE(end + 6);
+  const diskEntries = bytes.readUInt16LE(end + 8);
+  const entries = bytes.readUInt16LE(end + 10);
+  const centralSize = bytes.readUInt32LE(end + 12);
+  const centralStart = bytes.readUInt32LE(end + 16);
+  if (disk === 0xffff || centralDisk === 0xffff || diskEntries === 0xffff || entries === 0xffff ||
+      centralSize === 0xffffffff || centralStart === 0xffffffff) zipMetadataError("ZIP64 is not supported");
+  if (disk !== 0 || centralDisk !== 0 || diskEntries !== entries) zipMetadataError("split-disk ZIP is not supported");
+  if (entries > MAX_ZIP_ENTRIES) zipMetadataError("entry limit exceeded (1024)");
+  if (centralStart + centralSize !== end || entries * 46 > centralSize) {
+    zipMetadataError("invalid central directory offset or size");
+  }
+  let cursor = centralStart;
+  let totalBytes = 0;
+  let totalCompressedBytes = 0;
+  for (let entry = 0; entry < entries; entry++) {
+    if (cursor + 46 > end || bytes.readUInt32LE(cursor) !== 0x02014b50) {
+      zipMetadataError("truncated or invalid central header");
+    }
+    const compressed = bytes.readUInt32LE(cursor + 20);
+    const decompressed = bytes.readUInt32LE(cursor + 24);
+    const nameLength = bytes.readUInt16LE(cursor + 28);
+    const extraLength = bytes.readUInt16LE(cursor + 30);
+    const commentLength = bytes.readUInt16LE(cursor + 32);
+    const local = bytes.readUInt32LE(cursor + 42);
+    if (compressed === 0xffffffff || decompressed === 0xffffffff || local === 0xffffffff) zipMetadataError("ZIP64 is not supported");
+    if (bytes.readUInt16LE(cursor + 34) !== 0) zipMetadataError("split-disk ZIP is not supported");
+    if (nameLength > MAX_ZIP_PATH_BYTES) zipMetadataError("path limit exceeded (1024 bytes)");
+    if (extraLength > MAX_ZIP_EXTRA_BYTES || commentLength > MAX_ZIP_COMMENT_BYTES) {
+      zipMetadataError("extra field or entry comment limit exceeded (4096 bytes)");
+    }
+    if (compressed > MAX_COMPRESSED_BYTES) zipMetadataError("declared compressed entry limit exceeded (8 MiB)");
+    if (decompressed > MAX_XML_BYTES) zipMetadataError("declared decompressed entry limit exceeded (16 MiB)");
+    totalBytes += decompressed;
+    totalCompressedBytes += compressed;
+    if (totalBytes > MAX_ZIP_TOTAL_BYTES || totalCompressedBytes > MAX_COMPRESSED_BYTES) {
+      zipMetadataError("total declared size limit exceeded (32 MiB decompressed, 8 MiB compressed)");
+    }
+    const next = cursor + 46 + nameLength + extraLength + commentLength;
+    if (next > end) zipMetadataError("truncated central entry");
+    checkZipExtra(bytes, cursor + 46 + nameLength, extraLength);
+    if (local + 30 > centralStart || bytes.readUInt32LE(local) !== 0x04034b50) {
+      zipMetadataError("truncated or invalid local header offset");
+    }
+    const localCompressed = bytes.readUInt32LE(local + 18);
+    const localDecompressed = bytes.readUInt32LE(local + 22);
+    if (localCompressed === 0xffffffff || localDecompressed === 0xffffffff) zipMetadataError("ZIP64 is not supported");
+    if (localCompressed > MAX_COMPRESSED_BYTES || localDecompressed > MAX_XML_BYTES) {
+      zipMetadataError("local declared size limit exceeded (8 MiB compressed, 16 MiB decompressed)");
+    }
+    const localNameLength = bytes.readUInt16LE(local + 26);
+    const localExtraLength = bytes.readUInt16LE(local + 28);
+    if (localNameLength > MAX_ZIP_PATH_BYTES) zipMetadataError("local path limit exceeded (1024 bytes)");
+    if (localExtraLength > MAX_ZIP_EXTRA_BYTES) zipMetadataError("local extra field limit exceeded (4096 bytes)");
+    if (local + 30 + localNameLength + localExtraLength + compressed > centralStart) {
+      zipMetadataError("truncated local entry data");
+    }
+    checkZipExtra(bytes, local + 30 + localNameLength, localExtraLength);
+    cursor = next;
+  }
+  if (cursor !== end) zipMetadataError("central entry count or size mismatch");
 }
 
 async function extractGraphml(file: JSZip.JSZipObject): Promise<string> {
@@ -111,6 +218,7 @@ export async function readMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: stri
 }
 
 async function parseMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): Promise<Graph> {
+  checkZipMetadata(bytes);
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(bytes);

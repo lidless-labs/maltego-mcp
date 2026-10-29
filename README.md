@@ -109,7 +109,15 @@ maltego-mcp registers **13 MCP tools**, verified against `src/tools/index.ts`:
 ### Graph file and WHOIS limits
 
 MTGX imports accept at most 8 MiB of archive bytes and 16 MiB of extracted
-GraphML. Each import allows 10,000 entities, 20,000 links, 100,000 XML elements,
+GraphML. Before JSZip allocates entries, ZIP metadata preflight allows at most
+1,024 entries, 1,024 bytes per filename (including Unicode path extra fields),
+4,096 bytes each for entry extra fields and comments, and 64 extra fields per
+header. Declared sizes are capped at 8 MiB compressed and 16 MiB decompressed
+per entry, with totals of 8 MiB compressed and 32 MiB decompressed. Offsets,
+header lengths and entry counts must agree exactly. Ordinary archive comments
+and data descriptors are accepted. Split-disk and ZIP64 archives are rejected.
+Only the case-sensitive `Graphs/Graph1.graphml` member is extracted.
+Each import allows 10,000 entities, 20,000 links, 100,000 XML elements,
 and 64 nested tags. XML preflight runs before validation or tree allocation and
 also caps attributes at 128 per tag and 100,000 total, and tag length at 65,536
 characters. DTD declarations are rejected. At most two imports run at once,
