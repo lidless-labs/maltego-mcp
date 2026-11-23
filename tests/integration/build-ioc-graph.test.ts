@@ -81,11 +81,14 @@ describe("integration: build IOC graph", () => {
       const result = await tool.execute("soc", {
         ioc: { type: "Domain", value: "example.invalid" },
         outputPath: "ioc.mtgx",
-        maxItemsPerSection: 2,
+        maxItemsPerSection: 4,
         mispEvents: [
           { id: 7, title: "Shared title", info: "first record" },
           { id: "7", title: "Renamed", info: "later record" },
           { id: "007", title: "Shared title", properties: { eventId: "conflicting metadata" } },
+          { title: "Shared title", info: "untagged first" },
+          { title: "Shared title", info: "untagged second" },
+          { id: 9, title: "Beyond the limit" },
         ],
         thehiveCases: [
           { id: 7, title: "Shared title", status: "Open" },
@@ -97,12 +100,17 @@ describe("integration: build IOC graph", () => {
       const restored = await readMtgxFile(result.details.path, "restored");
       const misp = restored.allEntities().filter(entity => entity.properties.platform === "MISP");
       const thehive = restored.allEntities().filter(entity => entity.properties.platform === "TheHive");
-      expect(misp.map(entity => entity.properties.eventId)).toEqual(["7", "007"]);
+      expect(misp.map(entity => entity.properties.eventId)).toEqual(["7", "007", undefined, undefined]);
       expect(thehive.map(entity => entity.properties.caseId)).toEqual(["7", "008"]);
       expect(misp[0].properties.info).toBe("first record");
+      expect(misp.slice(2).map(entity => entity.properties.info)).toEqual(["untagged first", "untagged second"]);
       expect(thehive[0].properties.status).toBe("Open");
-      expect(restored.entityCount()).toBe(5);
-      expect(restored.linkCount()).toBe(4);
+      expect(restored.allEntities().map(entity => entity.value)).toEqual(expect.arrayContaining([
+        "[MISP] 2 more results omitted",
+        "[TheHive] 1 more result omitted",
+      ]));
+      expect(restored.entityCount()).toBe(9);
+      expect(restored.linkCount()).toBe(8);
     } finally {
       await rm(tmp, { recursive: true, force: true });
     }

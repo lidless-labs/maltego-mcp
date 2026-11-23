@@ -328,7 +328,7 @@ Environment:
 
 ### Starting the MCP server
 
-`maltegoctl mcp` (or the back-compat `maltego-mcp` bin) starts the stdio MCP server. If a launcher referenced the file path `dist/mcp-server.js` directly, it keeps working; new launchers can point at `dist/mcp-bin.js` (or `dist/cli.js mcp`). Launchers that use the `maltego-mcp` bin name need no change.
+`maltegoctl mcp` (or the back-compat `maltego-mcp` bin) starts the stdio MCP server. The package also retains the `maltegoctrl` alias shipped in 0.4.3. Existing launchers can still use `dist/mcp-server.js`. New launchers can point at `dist/mcp-bin.js` or `dist/cli.js mcp`.
 
 ## Basic-friendly demo graph
 

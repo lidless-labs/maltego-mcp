@@ -160,18 +160,19 @@ function takeVisibleRecords<T extends { id?: string | number }>(
   maxItems: number,
   getLabel: (item: T, id: string | undefined) => string,
 ) {
-  const seen = new Set<string>();
-  const unique: { item: T; id: string | undefined; label: string }[] = [];
-  // First occurrence wins per source ID. Without an ID, use the display label.
-  for (const item of items ?? []) {
+  const all = items ?? [];
+  const seenIds = new Set<string>();
+  const visible: { item: T; id: string | undefined; label: string }[] = [];
+  for (const item of all) {
+    if (visible.length >= Math.floor(maxItems)) break;
     const id = stringValue(item.id) || undefined;
-    const label = getLabel(item, id);
-    const key = id === undefined ? `label:${label}` : `id:${id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push({ item, id, label });
+    if (id !== undefined) {
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+    }
+    visible.push({ item, id, label: getLabel(item, id) });
   }
-  return takeVisible(unique, maxItems);
+  return { visible, omitted: all.length - visible.length };
 }
 
 function recordValue(used: Set<string>, source: string, label: string, id: string | undefined): string {
@@ -186,12 +187,15 @@ function recordValue(used: Set<string>, source: string, label: string, id: strin
   return value;
 }
 
-function addOmittedNode(graph: Graph, rootId: string, section: string, omitted: number, x: number, y: number): void {
+function addOmittedNode(
+  graph: Graph, rootId: string, section: string, omitted: number, x: number, y: number,
+  reason = "maxItemsPerSection limit",
+): void {
   if (omitted <= 0) return;
   const node = graph.addEntity({
     type: "Phrase",
     value: `[${section}] ${omitted} more result${omitted === 1 ? "" : "s"} omitted`,
-    properties: { reason: "maxItemsPerSection limit" },
+    properties: { reason },
     position: { x, y },
   });
   graph.addLink({ from: rootId, to: node.id, label: "omitted", properties: {} });
@@ -249,7 +253,8 @@ export function buildIocGraph(input: Input): Graph {
     graph.addLink({ from: root.id, to: node.id, label: "appears in", properties: {} });
     middleRow += 1;
   }
-  addOmittedNode(graph, root.id, "MISP", misp.omitted, COLUMN_SPACING, middleRow * ROW_SPACING);
+  const omittedRecordReason = "Repeated source ID or maxItemsPerSection limit";
+  addOmittedNode(graph, root.id, "MISP", misp.omitted, COLUMN_SPACING, middleRow * ROW_SPACING, omittedRecordReason);
   if (misp.omitted > 0) middleRow += 1;
 
   const cases = takeVisibleRecords(input.thehiveCases, maxItems, (item, id) =>
@@ -271,7 +276,7 @@ export function buildIocGraph(input: Input): Graph {
     graph.addLink({ from: root.id, to: node.id, label: "case", properties: {} });
     middleRow += 1;
   }
-  addOmittedNode(graph, root.id, "TheHive", cases.omitted, COLUMN_SPACING, middleRow * ROW_SPACING);
+  addOmittedNode(graph, root.id, "TheHive", cases.omitted, COLUMN_SPACING, middleRow * ROW_SPACING, omittedRecordReason);
   if (cases.omitted > 0) middleRow += 1;
 
   const reports = takeVisible(input.cortexReports, maxItems);
