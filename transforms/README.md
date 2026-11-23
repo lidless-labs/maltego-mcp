@@ -15,16 +15,16 @@ Configure backends. Create `%APPDATA%\maltego-mcp\config.toml` (Windows) or
 
 ```toml
 [misp]
-url = "https://misp.local"
+url = "https://misp.example.invalid"
 api_key_env = "MISP_API_KEY"
 verify_ssl = false
 
 [thehive]
-url = "https://thehive.local"
+url = "https://thehive.example.invalid"
 api_key_env = "THEHIVE_API_KEY"
 
 [cortex]
-url = "https://cortex.local"
+url = "https://cortex.example.invalid"
 api_key_env = "CORTEX_API_KEY"
 
 [network]
