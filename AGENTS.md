@@ -47,10 +47,9 @@ to create `transforms/.venv`.
   references keys by env var name (`api_key_env`); keep that pattern.
 - Failing tests: never weaken assertions, skip, or delete a failing test to
   get green. Fix the cause or report the failure verbatim as a blocker.
-- Pushing: `git config core.hooksPath` is `hooks`, so `hooks/pre-push` runs
-  content-guard (expected at `~/repos/content-guard`) against
-  `policies/public-repo.json` on every push. If it flags content, fix the
-  content. Never push with `--no-verify`.
+- Pushing: with `core.hooksPath=hooks`, `hooks/pre-push` runs Brigade's
+  embedded public-repo guard against tracked files and the outgoing commit
+  history. Fix any violations before pushing. Never push with `--no-verify`.
 - Blockers: missing venv, absent service, failing hook, anything that stops
   the task. Report the exact blocker and stop. Do not work around it
   silently.
@@ -67,7 +66,7 @@ to create `transforms/.venv`.
 - `npm run demo:basic` builds and writes a no-network demo graph to
   `dist/maltego-mcp-basic-soc-demo.mtgx`. Keep the demo graph under 24
   entities (Maltego Basic plan limit).
-- `prepublishOnly` runs typecheck, unit tests, and build. Keep all three
+- `prepublishOnly` runs typecheck, all TypeScript tests, and build. Keep all three
   green before any release work.
 
 ## Memory Handoff
