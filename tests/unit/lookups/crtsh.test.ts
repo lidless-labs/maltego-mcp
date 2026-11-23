@@ -1,11 +1,28 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { MockAgent, setGlobalDispatcher, getGlobalDispatcher, Dispatcher, errors } from "undici";
+import * as undici from "undici";
 import { crtshLookup } from "../../../src/lookups/crtsh.js";
+
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof undici>();
+  return { ...actual, request: vi.fn(actual.request) };
+});
 
 let originalDispatcher: Dispatcher;
 let mockAgent: MockAgent;
+
+const responseRow = {
+  id: 1,
+  common_name: "example.com",
+  issuer_name: "test CA",
+  name_value: "example.com",
+  not_before: "",
+  not_after: "",
+  serial_number: "01",
+  entry_timestamp: "",
+};
 
 beforeEach(() => {
   originalDispatcher = getGlobalDispatcher();
@@ -15,6 +32,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  vi.clearAllMocks();
   await mockAgent.close();
   setGlobalDispatcher(originalDispatcher);
 });
@@ -272,14 +290,62 @@ describe("crtshLookup", () => {
     });
   });
 
-  it.skip("returns a lookup error when crt.sh returns invalid JSON", async () => {
+  it.each([
+    ["invalid JSON", "not-json", "crt.sh returned invalid JSON"],
+    ["a non-array response", "{}", "crt.sh returned invalid certificate list"],
+    ["a null row", "[null]", "crt.sh returned invalid certificate data"],
+    ["a wrong field type", JSON.stringify([{ ...responseRow, name_value: 1 }]), "crt.sh returned invalid certificate data"],
+    ["a missing field", JSON.stringify([{ ...responseRow, serial_number: undefined }]), "crt.sh returned invalid certificate data"],
+    ["a long field", JSON.stringify([{ ...responseRow, common_name: "a".repeat(4097) }]), "crt.sh returned invalid certificate data"],
+    ["too many rows", JSON.stringify(Array(1001).fill(responseRow)), "crt.sh returned too many certificates"],
+    ["too many SANs per row", JSON.stringify([{ ...responseRow, name_value: "a\n".repeat(129) }]), "crt.sh returned too many SANs"],
+    ["too many SANs across rows", JSON.stringify(Array(33).fill({ ...responseRow, name_value: "a\n".repeat(125) })), "crt.sh returned too many SANs"],
+  ])("returns a lookup error for %s", async (_label, body, error) => {
     mockAgent
       .get("https://crt.sh")
       .intercept({ path: "/?q=example.com&output=json" })
-      .reply(200, "not-json", { headers: { "content-type": "application/json" } });
+      .reply(200, body);
 
-    const result = await crtshLookup("example.com");
+    const outcome = await crtshLookup("example.com");
+    expect(outcome.ok).toBe(false);
+    expect(outcome).toEqual({ ok: false, error, retriable: false });
+  });
 
-    expect(result.ok).toBe(false);
+  it.each([
+    [429, {}, "crt.sh rate limited", true],
+    [503, {}, "crt.sh returned 503", true],
+    [200, { "content-length": "1048577" }, "crt.sh response exceeds maximum size", false],
+  ] as const)("cancels an unread response body for HTTP %s", async (status, headers, error, retriable) => {
+    mockAgent
+      .get("https://crt.sh")
+      .intercept({ path: "/?q=example.com&output=json" })
+      .reply(status, "[]", { headers });
+
+    await expect(crtshLookup("example.com")).resolves.toMatchObject({ ok: false, error, retriable });
+    const response = await vi.mocked(undici.request).mock.results[0].value;
+    expect(response.body.destroyed).toBe(true);
+  });
+
+  it.each([
+    [1_048_576, true],
+    [1_048_577, false],
+  ])("enforces the actual UTF-8 byte limit for %s bytes", async (size, ok) => {
+    // Put two-byte characters in an ignored field of an otherwise valid response.
+    const row = JSON.stringify([{ ...responseRow, extra: "" }]);
+    const paddingBytes = size - Buffer.byteLength(row) - 3;
+    const padding = "é".repeat(Math.floor(paddingBytes / 2)) + "a".repeat(paddingBytes % 2);
+    const body = "\uFEFF" + row.replace('"extra":""', `"extra":"${padding}"`);
+    mockAgent
+      .get("https://crt.sh")
+      .intercept({ path: "/?q=example.com&output=json" })
+      .reply(200, body);
+
+    const outcome = await crtshLookup("example.com");
+    expect(outcome.ok).toBe(ok);
+    if (ok) {
+      expect(outcome).toMatchObject({ ok: true, data: { certs: [{ id: 1 }] } });
+    } else {
+      expect(outcome).toEqual({ ok: false, error: "crt.sh response exceeds maximum size", retriable: false });
+    }
   });
 });
