@@ -1,7 +1,7 @@
 {
   "id": "maltego",
   "name": "Maltego",
-  "description": "Author Maltego .mtgx graph files and run primitive OSINT lookups (whois / DNS / ASN / crt.sh) from inside OpenClaw. Phase A only; Phase B in-Maltego transforms ship as a separate .mtz import.",
+  "description": "Save Maltego .mtgx graphs, build IOC graphs from supplied enrichment, and run WHOIS, DNS, ASN, and crt.sh lookups inside OpenClaw. Local Maltego transforms ship as a separate .mtz import.",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
