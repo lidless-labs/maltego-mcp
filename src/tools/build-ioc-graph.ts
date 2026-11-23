@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Type, type Static } from "@sinclair/typebox";
 import { z } from "zod";
 import { Graph } from "../graph/graph.js";
@@ -154,6 +155,37 @@ function takeVisible<T>(items: T[] | undefined, maxItems: number): { visible: T[
   };
 }
 
+function takeVisibleRecords<T extends { id?: string | number }>(
+  items: T[] | undefined,
+  maxItems: number,
+  getLabel: (item: T, id: string | undefined) => string,
+) {
+  const seen = new Set<string>();
+  const unique: { item: T; id: string | undefined; label: string }[] = [];
+  // First occurrence wins per source ID. Without an ID, use the display label.
+  for (const item of items ?? []) {
+    const id = stringValue(item.id) || undefined;
+    const label = getLabel(item, id);
+    const key = id === undefined ? `label:${label}` : `id:${id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ item, id, label });
+  }
+  return takeVisible(unique, maxItems);
+}
+
+function recordValue(used: Set<string>, source: string, label: string, id: string | undefined): string {
+  const base = `[${source}] ${label}`;
+  let value = base;
+  if (used.has(value)) {
+    const qualified = id === undefined ? `[${source}, no ID] ${label}` : `[${source} #${id}] ${label}`;
+    value = qualified;
+    for (let suffix = 2; used.has(value); suffix++) value = `${qualified} (${suffix})`;
+  }
+  used.add(value);
+  return value;
+}
+
 function addOmittedNode(graph: Graph, rootId: string, section: string, omitted: number, x: number, y: number): void {
   if (omitted <= 0) return;
   const node = graph.addEntity({
@@ -187,7 +219,7 @@ export function buildIocGraph(input: Input): Graph {
     throw new ToolValidationError("ioc.type and ioc.value are required");
   }
 
-  const graph = new Graph("g-ioc-bridge", input.title ?? `ioc-${input.ioc.value}`);
+  const graph = new Graph(`g-${randomUUID()}`, input.title ?? `ioc-${input.ioc.value}`);
   const maxItems = input.maxItemsPerSection ?? DEFAULT_MAX_ITEMS;
   const root = graph.addEntity({
     type: input.ioc.type,
@@ -197,20 +229,20 @@ export function buildIocGraph(input: Input): Graph {
   });
 
   let middleRow = addNotes(graph, root.id, input.notes, maxItems);
+  const phraseValues = new Set(graph.allEntities().filter(entity => entity.type === "maltego.Phrase").map(entity => entity.value));
 
-  const misp = takeVisible(input.mispEvents, maxItems);
-  for (const event of misp.visible) {
-    const eventId = stringValue(event.id);
-    const label = valueWithFallback(event.title ?? event.info, eventId ? `Event #${eventId}` : "MISP event");
+  const misp = takeVisibleRecords(input.mispEvents, maxItems, (event, id) =>
+    valueWithFallback(event.title ?? event.info, id ? `Event #${id}` : "MISP event"));
+  for (const { item: event, id, label } of misp.visible) {
     const node = graph.addEntity({
       type: "Phrase",
-      value: `[MISP] ${label}`,
+      value: recordValue(phraseValues, "MISP", label, id),
       properties: cleanProperties({
         platform: "MISP",
-        eventId,
         info: event.info,
         url: event.url,
         ...event.properties,
+        eventId: id ?? event.properties?.eventId,
       }),
       position: { x: COLUMN_SPACING, y: middleRow * ROW_SPACING },
     });
@@ -220,20 +252,19 @@ export function buildIocGraph(input: Input): Graph {
   addOmittedNode(graph, root.id, "MISP", misp.omitted, COLUMN_SPACING, middleRow * ROW_SPACING);
   if (misp.omitted > 0) middleRow += 1;
 
-  const cases = takeVisible(input.thehiveCases, maxItems);
-  for (const item of cases.visible) {
-    const caseId = stringValue(item.id);
-    const label = valueWithFallback(item.title, caseId ? `Case #${caseId}` : "TheHive case");
+  const cases = takeVisibleRecords(input.thehiveCases, maxItems, (item, id) =>
+    valueWithFallback(item.title, id ? `Case #${id}` : "TheHive case"));
+  for (const { item, id, label } of cases.visible) {
     const node = graph.addEntity({
       type: "Phrase",
-      value: `[TheHive] ${label}`,
+      value: recordValue(phraseValues, "TheHive", label, id),
       properties: cleanProperties({
         platform: "TheHive",
-        caseId,
         severity: item.severity,
         status: item.status,
         url: item.url,
         ...item.properties,
+        caseId: id ?? item.properties?.caseId,
       }),
       position: { x: COLUMN_SPACING, y: middleRow * ROW_SPACING },
     });
@@ -299,9 +330,9 @@ export function createBuildIocGraphTool(deps: ToolDeps) {
     execute: async (_id: string, raw: Record<string, unknown>) => {
       const input = raw as Input;
       const graph = buildIocGraph(input);
-      deps.registry.register(graph);
       const outPath = confineToOutputDir(input.outputPath, deps.config.outputDir);
       await saveGraphFile(graph, outPath, input.overwrite ?? false);
+      deps.registry.register(graph);
       return jsonToolResult({
         graphId: graph.id,
         path: outPath,

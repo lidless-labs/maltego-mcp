@@ -6,6 +6,8 @@ import { join } from "node:path";
 import JSZip from "jszip";
 import { Graph } from "../../../src/graph/graph.js";
 import { saveGraphFile } from "../../../src/tools/_shared.js";
+import { createBuildIocGraphTool } from "../../../src/tools/build-ioc-graph.js";
+import { GraphRegistry } from "../../../src/server/registry.js";
 import { toToolResponse } from "../../../src/server/errors.js";
 
 vi.mock("node:fs/promises", async importOriginal => {
@@ -69,5 +71,22 @@ describe("publication failure state", () => {
     const response = toToolResponse((result[0] as PromiseRejectedResult).reason);
     expect(response.structuredContent.error.publication_state).toBeUndefined();
     await expect(fs.stat(path)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("reports an IOC graph published after cleanup fails without registering it", async () => {
+    vi.mocked(fs.unlink).mockRejectedValueOnce(new Error("injected unlink failure"));
+    const registry = new GraphRegistry();
+    const tool = createBuildIocGraphTool({ registry, config: { outputDir: root, lookupTimeoutMs: 30000 } });
+    const path = join(root, "ioc.mtgx");
+    const [result] = await Promise.allSettled([tool.execute("ioc", {
+      ioc: { type: "Domain", value: "example.invalid" },
+      outputPath: path,
+    })]);
+
+    expect(result.status).toBe("rejected");
+    const response = toToolResponse((result as PromiseRejectedResult).reason);
+    expect(response.structuredContent.error).toMatchObject({ path, publication_state: "published" });
+    expect((await JSZip.loadAsync(await fs.readFile(path))).file("Graphs/Graph1.graphml")).not.toBeNull();
+    expect(registry.allIds()).toEqual([]);
   });
 });
