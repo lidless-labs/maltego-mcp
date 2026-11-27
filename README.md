@@ -98,13 +98,13 @@ maltego-mcp registers **13 MCP tools**, verified against `src/tools/index.ts`:
 - `maltego_whois(domain)` — registrar, nameservers, dates
 - `maltego_dns(domain)` — A/AAAA/MX/NS/TXT
 - `maltego_asn(ip)` — Team Cymru ASN, prefix, country, org
-- `maltego_crtsh(domain)` — certificate transparency entries
+- `maltego_crtsh(domain)` returns certificate transparency entries. It reports a lookup error when crt.sh sends malformed data or exceeds the response limits.
 
 **Convenience expanders**
 - `maltego_expand_ip(ip, outputPath, overwrite?)` — IP + ASN + netblock, saved as `.mtgx`
 - `maltego_expand_domain(domain, outputPath, overwrite?)` — domain + whois + DNS + ASN per A record
 - `maltego_expand_hash(hash, outputPath, algorithm?, overwrite?)` — hash entity (extend in later versions)
-- `maltego_build_ioc_graph(ioc, outputPath, ...)` — one IOC plus enrichment summaries from other MCPs, saved as `.mtgx`
+- `maltego_build_ioc_graph(ioc, outputPath, ...)` saves an IOC and its enrichment summaries as `.mtgx` and returns a new graph handle. MISP and TheHive records with distinct IDs are retained when they share a title.
 
 ### Graph file and WHOIS limits
 
@@ -328,7 +328,7 @@ Environment:
 
 ### Starting the MCP server
 
-`maltegoctl mcp` (or the back-compat `maltego-mcp` bin) starts the stdio MCP server. If a launcher referenced the file path `dist/mcp-server.js` directly, it keeps working; new launchers can point at `dist/mcp-bin.js` (or `dist/cli.js mcp`). Launchers that use the `maltego-mcp` bin name need no change.
+`maltegoctl mcp` (or the back-compat `maltego-mcp` bin) starts the stdio MCP server. The package also retains the `maltegoctrl` alias shipped in 0.4.3. Existing launchers can still use `dist/mcp-server.js`. New launchers can point at `dist/mcp-bin.js` or `dist/cli.js mcp`.
 
 ## Basic-friendly demo graph
 

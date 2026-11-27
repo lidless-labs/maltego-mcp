@@ -145,7 +145,10 @@ describe("built MCP entrypoints", () => {
   });
 
   it.each(["--help", "--version"])("CLI %s does not start a server", async (flag) => {
-    const result = await exec(process.execPath, [join(buildDir, "cli.js"), flag], { timeout: 5_000 });
+    const cli = join(buildDir, "cli.js");
+    const result = process.platform === "win32"
+      ? await exec(process.execPath, [cli, flag], { timeout: 5_000 })
+      : await exec(cli, [flag], { timeout: 5_000 });
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain(flag === "--version" ? pkg.version : "Usage:");
   });

@@ -217,6 +217,11 @@ export async function readMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: stri
   return withImportSlot(() => parseMtgxBytes(bytes, newGraphId));
 }
 
+function propertyText(property: { "mtg:Value"?: string | { "#text"?: string } } | undefined): string {
+  const value = property?.["mtg:Value"];
+  return typeof value === "string" ? value : value?.["#text"] ?? "";
+}
+
 async function parseMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): Promise<Graph> {
   checkZipMetadata(bytes);
   let zip: JSZip;
@@ -237,6 +242,8 @@ async function parseMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): P
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
+    parseTagValue: false,
+    trimValues: false,
     maxNestedTags: 64,
   });
   const parsed = parser.parse(xml);
@@ -260,7 +267,7 @@ async function parseMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): P
     const properties: Record<string, string> = {};
     for (const p of propsArr) {
       const name = p?.["@_name"];
-      const val = String(p?.["mtg:Value"] ?? "");
+      const val = propertyText(p);
       if (name === valueProperty) {
         value = val;
       } else if (name === "properties.value" && value === "") {
@@ -317,7 +324,7 @@ async function parseMtgxBytes(bytes: Uint8Array | Buffer, newGraphId: string): P
     const properties: Record<string, string> = {};
     for (const p of propsArr) {
       const name = p?.["@_name"];
-      const val = String(p?.["mtg:Value"] ?? "");
+      const val = propertyText(p);
       if (name === "maltego.link.manual.type" || name === "maltego.link.label") {
         if (val) label = val;
       } else if (name === "maltego.link.show-label") {

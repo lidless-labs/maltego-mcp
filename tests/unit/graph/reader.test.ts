@@ -31,6 +31,20 @@ describe("readMtgxBytes", () => {
     await expect(readMtgxBytes(bad, "g-x")).rejects.toThrow(/parse|zip/i);
   });
 
+  it.each(["0012", "12.3400", " \t text & <tag>\n ", " \t\n "])(
+    "round-trips exact entity values, property values, and edge labels (%j)",
+    async value => {
+      const original = new Graph("g-1", "rt");
+      const from = original.addEntity({ type: "Phrase", value, properties: { original: value } });
+      const to = original.addEntity({ type: "Domain", value: "example.com" });
+      original.addLink({ from: from.id, to: to.id, label: value, properties: { original: value } });
+
+      const restored = await readMtgxBytes(await writeMtgxBytes(original), "g-2");
+      expect(restored.allEntities()[0]).toMatchObject({ value, properties: { original: value } });
+      expect(restored.allLinks()[0]).toMatchObject({ label: value, properties: { original: value } });
+    },
+  );
+
   it("throws when Graphs/Graph1.graphml is missing", async () => {
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
@@ -77,6 +91,9 @@ describe("readMtgxBytes", () => {
             <mtg:Property name="properties.value" displayName="Value" type="string" nullable="true" hidden="false" readonly="false">
               <mtg:Value>example.com</mtg:Value>
             </mtg:Property>
+            <mtg:Property name="reference">
+              <mtg:Value xml:space="preserve"><![CDATA[ 00042 ]]></mtg:Value>
+            </mtg:Property>
           </mtg:Properties>
         </mtg:MaltegoEntity>
       </data>
@@ -86,6 +103,15 @@ describe("readMtgxBytes", () => {
         </y:ShapeNode>
       </data>
     </node>
+    <edge source="e-1" target="e-1">
+      <data key="d2">
+        <mtg:MaltegoLink>
+          <mtg:Properties>
+            <mtg:Property name="maltego.link.label"><mtg:Value> 00.250 </mtg:Value></mtg:Property>
+          </mtg:Properties>
+        </mtg:MaltegoLink>
+      </data>
+    </edge>
   </graph>
 </graphml>`);
     const bytes = await zip.generateAsync({ type: "uint8array" });
@@ -93,6 +119,8 @@ describe("readMtgxBytes", () => {
     const restored = await readMtgxBytes(bytes, "g-legacy");
     expect(restored.allEntities()[0].value).toBe("example.com");
     expect(restored.allEntities()[0].position).toEqual({ x: 12, y: 34 });
+    expect(restored.allEntities()[0].properties.reference).toBe(" 00042 ");
+    expect(restored.allLinks()[0].label).toBe(" 00.250 ");
   });
 });
 
